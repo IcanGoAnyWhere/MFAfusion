@@ -6,7 +6,7 @@ from .roi_head_template import RoIHeadTemplate
 
 
 class VoxelRCNNHead(RoIHeadTemplate):
-    def __init__(self, backbone_channels, model_cfg, point_cloud_range, voxel_size, num_class=1, **kwargs):
+    def __init__(self, backbone_channels, model_cfg, point_cloud_range, voxel_size, num_class=3, **kwargs):
         super().__init__(num_class=num_class, model_cfg=model_cfg)
         self.model_cfg = model_cfg
         self.pool_cfg = model_cfg.ROI_GRID_POOL

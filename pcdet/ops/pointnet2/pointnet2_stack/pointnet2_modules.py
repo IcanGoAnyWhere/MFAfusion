@@ -9,6 +9,7 @@ from . import pointnet2_utils
 
 def build_local_aggregation_module(input_channels, config):
     local_aggregation_name = config.get('NAME', 'StackSAModuleMSG')
+    # print(local_aggregation_name)
 
     if local_aggregation_name == 'StackSAModuleMSG':
         mlps = config.MLPS

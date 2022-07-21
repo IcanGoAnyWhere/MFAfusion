@@ -1,14 +1,18 @@
 import copy
 import pickle
 from pathlib import Path
-
+from skimage import io
+import os.path as osp
 import numpy as np
 from tqdm import tqdm
-
+from nuscenes.utils.data_classes import LidarPointCloud
 from ...ops.roiaware_pool3d import roiaware_pool3d_utils
 from ...utils import common_utils
+from nuscenes.utils.geometry_utils import view_points
 from ..dataset import DatasetTemplate
-
+from pyquaternion import Quaternion
+from PIL import Image
+import matplotlib.pyplot as plt
 
 class NuScenesDataset(DatasetTemplate):
     def __init__(self, dataset_cfg, class_names, training=True, root_path=None, logger=None):
@@ -26,6 +30,7 @@ class NuScenesDataset(DatasetTemplate):
         nuscenes_infos = []
 
         for info_path in self.dataset_cfg.INFO_PATH[mode]:
+        # for info_path in self.dataset_cfg.INFO_PATH['train']:
             info_path = self.root_path / info_path
             if not info_path.exists():
                 continue
@@ -92,21 +97,120 @@ class NuScenesDataset(DatasetTemplate):
     def get_lidar_with_sweeps(self, index, max_sweeps=1):
         info = self.infos[index]
         lidar_path = self.root_path / info['lidar_path']
-        points = np.fromfile(str(lidar_path), dtype=np.float32, count=-1).reshape([-1, 5])[:, :4]
-
+        points = np.fromfile(str(lidar_path), dtype=np.float32, count=-1).reshape([-1, 5])[:, :4]   # 先载入sample
         sweep_points_list = [points]
         sweep_times_list = [np.zeros((points.shape[0], 1))]
-
-        for k in np.random.choice(len(info['sweeps']), max_sweeps - 1, replace=False):
+        for k in np.random.choice(len(info['sweeps']), max_sweeps - 1, replace=False):  # 然后载入sweeps
             points_sweep, times_sweep = self.get_sweep(info['sweeps'][k])
             sweep_points_list.append(points_sweep)
             sweep_times_list.append(times_sweep)
 
         points = np.concatenate(sweep_points_list, axis=0)
         times = np.concatenate(sweep_times_list, axis=0).astype(points.dtype)
-
         points = np.concatenate((points, times), axis=1)
+
         return points
+
+
+    def map_pointcloud_to_image(self,index,pointsensor,cam,min_dist = 1.0,render_intensity: bool = False):
+
+        info = self.infos[index]
+        pcl_path = osp.join(self.root_path, pointsensor['filename'])
+        if pointsensor['sensor_modality'] == 'lidar':
+            pc = LidarPointCloud.from_file(pcl_path)
+        else:
+            pc = RadarPointCloud.from_file(pcl_path)
+        im = Image.open(osp.join(self.root_path, cam['filename']))
+
+
+        points = copy.deepcopy(pc.points[:3, :])
+        r_matrix = []
+        t_matrix = []
+
+
+        # Points live in the point sensor frame. So they need to be transformed via global to the image plane.
+        # First step: transform the point-cloud to the ego vehicle frame for the timestamp of the sweep.
+        cs_record = info['transform'][0]
+
+        r_matrix.append(Quaternion(cs_record['rotation']).rotation_matrix)
+        t_matrix.append(np.array(cs_record['translation']).reshape(3, 1))
+
+
+        # Second step: transform to the global frame.
+        poserecord = info['transform'][1]
+        r_matrix.append(Quaternion(poserecord['rotation']).rotation_matrix)
+        t_matrix.append(np.array(poserecord['translation']).reshape(3, 1))
+
+        # Third step: transform into the ego vehicle frame for the timestamp of the image.
+        poserecord = info['transform'][2]
+        r_matrix.append(Quaternion(poserecord['rotation']).rotation_matrix.T)
+        t_matrix.append(-np.array(poserecord['translation']).reshape(3, 1))
+
+        # Fourth step: transform into the camera.
+        cs_record = info['transform'][3]
+        r_matrix.append(Quaternion(cs_record['rotation']).rotation_matrix.T)
+        t_matrix.append(-np.array(cs_record['translation']).reshape(3, 1))
+
+
+        points = np.matmul(r_matrix[0], points) + t_matrix[0]
+        points = np.matmul(r_matrix[1], points) + t_matrix[1]
+        points = np.matmul(r_matrix[2], points + t_matrix[2])
+        points = np.matmul(r_matrix[3], points + t_matrix[3])
+
+        # Fifth step: actually take a "picture" of the point cloud.
+        # Grab the depths (camera frame z axis points away from the camera).
+        depths = points[2, :]
+        # Take the actual picture (matrix multiplication with camera-matrix + renormalization).
+        points = view_points(points, np.array(cs_record['camera_intrinsic']), normalize=True)
+        pc.points[:3, :] = points
+
+
+
+        if render_intensity:
+            assert pointsensor['sensor_modality'] == 'lidar', 'Error: Can only render intensity for lidar!'
+            # Retrieve the color from the intensities.
+            # Performs arbitary scaling to achieve more visually pleasing results.
+            intensities = pc.points[3, :]
+            intensities = (intensities - np.min(intensities)) / (np.max(intensities) - np.min(intensities))
+            intensities = intensities ** 0.1
+            intensities = np.maximum(0, intensities - 0.5)
+            coloring = intensities
+        else:
+            # Retrieve the color from the depth.
+            coloring = depths
+
+
+        # points = view_points(pc.points[:3, :], np.array(cs_record['camera_intrinsic']), normalize=True)
+
+        # Remove points that are either outside or behind the camera. Leave a margin of 1 pixel for aesthetic reasons.
+        # Also make sure points are at least 1m in front of the camera to avoid seeing the lidar points on the camera
+        # casing for non-keyframes which are slightly out of sync.
+        mask = np.ones(depths.shape[0], dtype=bool)
+        mask = np.logical_and(mask, depths > min_dist)
+        mask = np.logical_and(mask, points[0, :] > 1)
+        mask = np.logical_and(mask, points[0, :] < im.size[0] - 1)
+        mask = np.logical_and(mask, points[1, :] > 1)
+        mask = np.logical_and(mask, points[1, :] < im.size[1] - 1)
+        points = points[:, mask]
+        coloring = coloring[mask]
+
+        return points, coloring, im , mask, r_matrix, t_matrix
+
+    def get_image(self, index):
+        """
+        Loads image for a sample
+        Args:
+            idx: int, Sample index
+        Returns:
+            image: (H, W, 3), RGB Image
+        """
+        info = self.infos[index]
+        img_file = self.root_path / info['cam_front_path']
+        assert img_file.exists()
+        image = io.imread(img_file)
+        image = image.astype(np.float32)
+        image /= 255.0
+        return image
 
     def __len__(self):
         if self._merge_all_iters_to_one_epoch:
@@ -120,9 +224,23 @@ class NuScenesDataset(DatasetTemplate):
 
         info = copy.deepcopy(self.infos[index])
         points = self.get_lidar_with_sweeps(index, max_sweeps=self.dataset_cfg.MAX_SWEEPS)
+        images = self.get_image(index)
+        points_maped, coloring, im, mask, r_matrix, t_matrix = self.map_pointcloud_to_image(index, info['lidar_info'], info['cam_info'])
+        points_filter = points[mask,:]
+
+
+        # plt.imshow(im)
+        # plt.scatter(points_maped[0,:],points_maped[1,:],c=coloring,s=5)
+        # plt.show()
+
+
 
         input_dict = {
-            'points': points,
+            'points': points_filter,
+            'images': images,
+            'r_matrix':r_matrix,
+            't_matrix':t_matrix,
+            'camera_intrinsic':info['cam_intrinsic'],
             'frame_id': Path(info['lidar_path']).stem,
             'metadata': {'token': info['token']}
         }
@@ -298,6 +416,7 @@ class NuScenesDataset(DatasetTemplate):
 
 def create_nuscenes_info(version, data_path, save_path, max_sweeps=10):
     from nuscenes.nuscenes import NuScenes
+
     from nuscenes.utils import splits
     from . import nuscenes_utils
     data_path = data_path / version
@@ -350,9 +469,9 @@ if __name__ == '__main__':
     from easydict import EasyDict
 
     parser = argparse.ArgumentParser(description='arg parser')
-    parser.add_argument('--cfg_file', type=str, default=None, help='specify the config of dataset')
+    parser.add_argument('--cfg_file', type=str, default='../../../tools/cfgs/dataset_configs/nuscenes_dataset_LI.yaml', help='specify the config of dataset')
     parser.add_argument('--func', type=str, default='create_nuscenes_infos', help='')
-    parser.add_argument('--version', type=str, default='v1.0-trainval', help='')
+    parser.add_argument('--version', type=str, default='v1.0-mini', help='')
     args = parser.parse_args()
 
     if args.func == 'create_nuscenes_infos':

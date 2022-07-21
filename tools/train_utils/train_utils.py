@@ -42,16 +42,24 @@ def train_one_epoch(model, optimizer, train_loader, model_func, lr_scheduler, ac
             tb_log.add_scalar('meta_data/learning_rate', cur_lr, accumulated_iter)
 
         model.train()
-        optimizer.zero_grad()
+
 
         loss, tb_dict, disp_dict = model_func(model, batch)
 
         forward_timer = time.time()
         cur_forward_time = forward_timer - data_timer
-
-        loss.backward()
+        loss_batch = loss
+        loss_batch.backward()
         clip_grad_norm_(model.parameters(), optim_cfg.GRAD_NORM_CLIP)
+
         optimizer.step()
+        optimizer.zero_grad()
+
+        # if cur_it !=0:
+        #     if cur_it % 16 ==0 or cur_it ==len(train_loader):
+        #
+        #         optimizer.step()
+        #         optimizer.zero_grad()
 
         accumulated_iter += 1
 

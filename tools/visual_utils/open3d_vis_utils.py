@@ -35,7 +35,8 @@ def get_coor_colors(obj_labels):
     return label_rgba
 
 
-def draw_scenes(points, gt_boxes=None, ref_boxes=None, ref_labels=None, ref_scores=None, point_colors=None, draw_origin=True):
+def draw_scenes(points,vis, gt_boxes=None, ref_boxes=None,
+                ref_labels=None, ref_scores=None, point_colors=None, draw_origin=True):
     if isinstance(points, torch.Tensor):
         points = points.cpu().numpy()
     if isinstance(gt_boxes, torch.Tensor):
@@ -43,8 +44,7 @@ def draw_scenes(points, gt_boxes=None, ref_boxes=None, ref_labels=None, ref_scor
     if isinstance(ref_boxes, torch.Tensor):
         ref_boxes = ref_boxes.cpu().numpy()
 
-    vis = open3d.visualization.Visualizer()
-    vis.create_window()
+
 
     vis.get_render_option().point_size = 1.0
     vis.get_render_option().background_color = np.zeros(3)
@@ -63,14 +63,24 @@ def draw_scenes(points, gt_boxes=None, ref_boxes=None, ref_labels=None, ref_scor
     else:
         pts.colors = open3d.utility.Vector3dVector(point_colors)
 
+
     if gt_boxes is not None:
         vis = draw_box(vis, gt_boxes, (0, 0, 1))
 
     if ref_boxes is not None:
         vis = draw_box(vis, ref_boxes, (0, 1, 0), ref_labels, ref_scores)
 
-    vis.run()
-    vis.destroy_window()
+    # 改变视角
+    ctr = vis.get_view_control()
+    ctr.rotate(530.0, 530.0)
+    ctr.rotate(-530.0, -400.0)
+    ctr.scale(-17)
+
+
+    # vis.run()
+    # vis.clear_geometries()
+    #
+    # vis.destroy_window()
 
 
 def translate_boxes_to_open3d_instance(gt_boxes):
@@ -111,6 +121,14 @@ def draw_box(vis, gt_boxes, color=(0, 1, 0), ref_labels=None, score=None):
         vis.add_geometry(line_set)
 
         # if score is not None:
+        #     # app = open3d.visualization.gui.Application.instance
+        #     # app.initialize()
+        #     # vis3d = open3d.visualization.O3DVisualizer()
         #     corners = box3d.get_box_points()
-        #     vis.add_3d_label(corners[5], '%.2f' % score[i])
+        #     # vis.add_3d_label(corners[5], '%.2f' % score[i])
+        #     locate = np.resize(np.asarray(corners[5]).astype(np.float32), (3,1))
+        #     # vis3d = open3d.visualization.O3DVisualizer("Open3D - 3D Text", 1024, 768)
+        #
+        #
+        #     vis3d.add_3d_label(locate, '%.2f' % score[i])
     return vis

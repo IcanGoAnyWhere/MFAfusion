@@ -27,8 +27,10 @@ class KittiDataset(DatasetTemplate):
         self.root_split_path = self.root_path / ('training' if self.split != 'test' else 'testing')
 
         split_dir = self.root_path / 'ImageSets' / (self.split + '.txt')
-        self.sample_id_list = [x.strip() for x in open(split_dir).readlines()] if split_dir.exists() else None
 
+        self.sample_id_list = [x.strip() for x in open(split_dir).readlines()] if split_dir.exists() else None  #   读取txt文件，x.strip()首尾去除空格
+
+        # self.data_augmentor = piture_augmentor
         self.kitti_infos = []
         self.include_kitti_data(self.mode)
 
@@ -78,7 +80,9 @@ class KittiDataset(DatasetTemplate):
         image = io.imread(img_file)
         image = image.astype(np.float32)
         image /= 255.0
-        return image
+        imback = np.zeros([384, 1280, 3], dtype=np.float)
+        imback[:image.shape[0], :image.shape[1], :] = image
+        return imback
 
     def get_image_shape(self, idx):
         img_file = self.root_split_path / 'image_2' / ('%s.png' % idx)
@@ -108,7 +112,7 @@ class KittiDataset(DatasetTemplate):
     def get_calib(self, idx):
         calib_file = self.root_split_path / 'calib' / ('%s.txt' % idx)
         assert calib_file.exists()
-        return calibration_kitti.Calibration(calib_file)
+        return calibration_kitti.Calibration(calib_file), calib_file
 
     def get_road_plane(self, idx):
         plane_file = self.root_split_path / 'planes' / ('%s.txt' % idx)
@@ -158,7 +162,7 @@ class KittiDataset(DatasetTemplate):
 
             image_info = {'image_idx': sample_idx, 'image_shape': self.get_image_shape(sample_idx)}
             info['image'] = image_info
-            calib = self.get_calib(sample_idx)
+            calib = self.get_calib(sample_idx)[0]
 
             P2 = np.concatenate([calib.P2, np.array([[0., 0., 0., 1.]])], axis=0)
             R0_4x4 = np.zeros([4, 4], dtype=calib.R0.dtype)
@@ -201,7 +205,7 @@ class KittiDataset(DatasetTemplate):
 
                 if count_inside_pts:
                     points = self.get_lidar(sample_idx)
-                    calib = self.get_calib(sample_idx)
+                    calib,  = self.get_calib(sample_idx)
                     pts_rect = calib.lidar_to_rect(points[:, 0:3])
 
                     fov_flag = self.get_fov_flag(pts_rect, info['image']['image_shape'], calib)
@@ -377,7 +381,7 @@ class KittiDataset(DatasetTemplate):
 
         sample_idx = info['point_cloud']['lidar_idx']
         img_shape = info['image']['image_shape']
-        calib = self.get_calib(sample_idx)
+        calib, calib_file = self.get_calib(sample_idx)
         get_item_list = self.dataset_cfg.get('GET_ITEM_LIST', ['points'])
 
         input_dict = {
@@ -406,14 +410,27 @@ class KittiDataset(DatasetTemplate):
 
         if "points" in get_item_list:
             points = self.get_lidar(sample_idx)
+
+            # index_rdm = np.random.choice(np.size(points,0),5000)
+
+            # noise = 0.2*np.random.rand(np.size(points,0), np.size(points,1)-1)
+            # zeros = np.zeros((np.size(noise, 0),1))
+            # noise = np.concatenate((noise,zeros),axis=1)
+            # points += noise
+            # # points = np.concatenate((points,noise),axis=0)
+
             if self.dataset_cfg.FOV_POINTS_ONLY:
                 pts_rect = calib.lidar_to_rect(points[:, 0:3])
                 fov_flag = self.get_fov_flag(pts_rect, img_shape, calib)
                 points = points[fov_flag]
+
+
             input_dict['points'] = points
+
 
         if "images" in get_item_list:
             input_dict['images'] = self.get_image(sample_idx)
+            # print(sample_idx)
 
         if "depth_maps" in get_item_list:
             input_dict['depth_maps'] = self.get_depth_map(sample_idx)
@@ -439,13 +456,13 @@ def create_kitti_infos(dataset_cfg, class_names, data_path, save_path, workers=4
     print('---------------Start to generate data infos---------------')
 
     dataset.set_split(train_split)
-    kitti_infos_train = dataset.get_infos(num_workers=workers, has_label=True, count_inside_pts=True)
+    kitti_infos_train = dataset.get_infos(num_workers=workers, has_label=False, count_inside_pts=True)
     with open(train_filename, 'wb') as f:
         pickle.dump(kitti_infos_train, f)
     print('Kitti info train file is saved to %s' % train_filename)
 
     dataset.set_split(val_split)
-    kitti_infos_val = dataset.get_infos(num_workers=workers, has_label=True, count_inside_pts=True)
+    kitti_infos_val = dataset.get_infos(num_workers=workers, has_label=False, count_inside_pts=True)
     with open(val_filename, 'wb') as f:
         pickle.dump(kitti_infos_val, f)
     print('Kitti info val file is saved to %s' % val_filename)

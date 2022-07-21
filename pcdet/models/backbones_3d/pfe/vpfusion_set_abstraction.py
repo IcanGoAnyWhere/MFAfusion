@@ -1,12 +1,35 @@
+import copy
 import math
 import numpy as np
 import torch
 import torch.nn as nn
 import torchvision as tv
+import matplotlib
+from torch.nn.functional import grid_sample
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
+import open3d
+import torch.nn.functional as F
 
+from nuscenes.utils.geometry_utils import view_points
 from ....ops.pointnet2.pointnet2_stack import pointnet2_modules as pointnet2_stack_modules
 from ....ops.pointnet2.pointnet2_stack import pointnet2_utils as pointnet2_stack_utils
-from ....utils import common_utils
+from ....utils import common_utils, calibration_kitti
+
+class Fusion_Conv(nn.Module):
+    def __init__(self, inplanes, outplanes):
+
+        super(Fusion_Conv, self).__init__()
+
+        self.conv1 = torch.nn.Conv1d(inplanes, outplanes, 1)
+        self.bn1 = torch.nn.BatchNorm1d(outplanes)
+
+    def forward(self, point_features, img_features):
+        #print(point_features.shape, img_features.shape)
+        fusion_features = torch.cat([point_features, img_features], dim=1)
+        fusion_features = F.relu(self.bn1(self.conv1(fusion_features)))
+
+        return fusion_features
 
 def bilinear_interpolate_torch(im, x, y):
     """
@@ -38,7 +61,8 @@ def bilinear_interpolate_torch(im, x, y):
     wb = (x1.type_as(x) - x) * (y - y0.type_as(y))
     wc = (x - x0.type_as(x)) * (y1.type_as(y) - y)
     wd = (x - x0.type_as(x)) * (y - y0.type_as(y))
-    ans = torch.t((torch.t(Ia) * wa)) + torch.t(torch.t(Ib) * wb) + torch.t(torch.t(Ic) * wc) + torch.t(torch.t(Id) * wd)
+    ans = torch.t((torch.t(Ia) * wa)) + torch.t(torch.t(Ib) * wb) + torch.t(torch.t(Ic) * wc) + torch.t(
+        torch.t(Id) * wd)
     return ans
 
 
@@ -121,7 +145,7 @@ def sector_fps(points, num_sampled_points, num_sectors):
     return sampled_points
 
 
-class VoxelSetAbstraction(nn.Module):
+class VPSA(nn.Module):
     def __init__(self, model_cfg, voxel_size, point_cloud_range, num_bev_features=None,
                  num_rawpoint_features=None, **kwargs):
         super().__init__()
@@ -132,6 +156,7 @@ class VoxelSetAbstraction(nn.Module):
         SA_cfg = self.model_cfg.SA_LAYER
 
         self.SA_layers = nn.ModuleList()
+        self.Fusion_Conv = nn.ModuleList()
         self.SA_layer_names = []
         self.downsample_times_map = {}
         c_in = 0
@@ -172,6 +197,10 @@ class VoxelSetAbstraction(nn.Module):
         )
         self.num_point_features = self.model_cfg.NUM_OUTPUT_FEATURES
         self.num_point_features_before_fusion = c_in
+
+        for i in range(len(model_cfg.IMG_CHANNELS) - 1):
+            self.Fusion_Conv.append(Fusion_Conv(model_cfg.IMG_CHANNELS[i + 1] + model_cfg.POINT_CHANNELS[i],
+                                                model_cfg.POINT_CHANNELS[i]))
 
     def interpolate_from_bev_features(self, keypoints, bev_features, batch_size, bev_stride):
         """
@@ -275,7 +304,9 @@ class VoxelSetAbstraction(nn.Module):
 
         keypoints = torch.cat(keypoints_list, dim=0)  # (B, M, 3) or (N1 + N2 + ..., 4)
         if len(keypoints.shape) == 3:
-            batch_idx = torch.arange(batch_size, device=keypoints.device).view(-1, 1).repeat(1, keypoints.shape[1]).view(-1, 1)
+            batch_idx = torch.arange(batch_size, device=keypoints.device).view(-1, 1).repeat(1,
+                                                                                             keypoints.shape[1]).view(
+                -1, 1)
             keypoints = torch.cat((batch_idx.float(), keypoints.view(-1, 3)), dim=1)
 
         return keypoints
@@ -401,15 +432,91 @@ class VoxelSetAbstraction(nn.Module):
 
             point_features_list.append(pooled_features)
 
+        sample_feature_list = []
+
+
+        if 'kitti' in self.model_cfg.get('DATASET', None):
+
+            size_range = [1242.0, 375.0]
+            pts_lidar = keypoints[:, 1:4].cpu().numpy()
+            pts_lidar = np.hstack((pts_lidar, np.ones((pts_lidar.shape[0], 1), dtype=np.float32)))
+            P2 = batch_dict['trans_cam_to_img'].squeeze(0).cpu().numpy()  # 内参矩阵
+            V2R = batch_dict['trans_lidar_to_cam'].squeeze(0).cpu().numpy()  # 外参矩阵
+            trans_matrix = np.matmul(P2, V2R)  # 转换矩阵
+
+            pts_lidar2img = np.matmul(trans_matrix, pts_lidar.T)
+            pts_lidar2img = np.transpose(pts_lidar2img)
+            pts_lidar2img = pts_lidar2img / pts_lidar2img[:, [2]]
+
+        elif 'nuscenes' in self.model_cfg.get('DATASET', None):
+
+            size_range = [1600.0, 900.0]
+            pts_lidar = keypoints[:, 1:4].cpu().numpy().T
+
+            r_matrix = batch_dict['r_matrix'].squeeze(0).cpu().numpy()
+            t_matrix = batch_dict['t_matrix'].squeeze(0).cpu().numpy()
+            camera_intrinsic = batch_dict['camera_intrinsic'].squeeze(0).cpu().numpy()
+
+            pts_lidar = np.matmul(r_matrix[0], pts_lidar) + t_matrix[0]
+            pts_lidar = np.matmul(r_matrix[1], pts_lidar) + t_matrix[1]
+            pts_lidar = np.matmul(r_matrix[2], pts_lidar + t_matrix[2])
+            pts_lidar = np.matmul(r_matrix[3], pts_lidar + t_matrix[3])
+
+            pts_lidar2img = view_points(pts_lidar, np.array(camera_intrinsic), normalize=True)
+            pts_lidar2img = pts_lidar2img.T
+
+        xylist = []
+
+        for i in range(len(batch_dict['multi_img_features'])):
+            xy = torch.tensor(pts_lidar2img[:, [0, 1]] / 2 ** (i+1)).unsqueeze(0)
+            if self.model_cfg.DEBUG:
+                xylist.append(copy.deepcopy(xy))
+            xy[:, :, 0] = xy[:, :, 0] / (size_range[0] - 1.0) * 2.0 - 1.0
+            xy[:, :, 1] = xy[:, :, 1] / (size_range[1] - 1.0) * 2.0 - 1.0
+
+            xy = xy.unsqueeze(1).cuda().type(torch.float32)
+
+            featuremap = batch_dict['multi_img_features']['x_conv%s'%(i+1)]
+
+            img_sample_feature = grid_sample(featuremap, xy).squeeze(2)
+
+
+            sample_feature_list.append(img_sample_feature)
+
+            lidar_feature = point_features_list[i + 1].permute(1, 0).unsqueeze(0)
+            VP_features = self.Fusion_Conv[i](lidar_feature, img_sample_feature)
+
+            point_features_list[i + 1] = VP_features.squeeze(0).permute(1, 0)
+
+        if self.model_cfg.DEBUG:
+            # 获取图片
+            # imgbatch = tv.utils.make_grid(batch_dict['images']).cpu().numpy()
+            img_cov1 = tv.utils.make_grid(batch_dict['multi_img_features']['x_conv1']).cpu()[0:3, :, :]
+            imgbatch = img_cov1.detach().numpy()
+
+            plt.imshow(np.transpose(imgbatch, (1, 2, 0)))
+            u = xylist[0][:,:, 0]
+            v = xylist[0][:,:, 1]
+
+            # u = xy[:, :, 0]
+            # v = xy[:, :, 1]
+
+            plt.scatter(u, v, s=0.5)
+            plt.show()
+
+            # pointshow = batch_dict['points'][:, 1:4].cpu().numpy()
+            # point_cloud = open3d.geometry.PointCloud()
+            # point_cloud.points = open3d.utility.Vector3dVector(pointshow)
+            # open3d.visualization.draw_geometries([point_cloud])
+
+
         point_features = torch.cat(point_features_list, dim=-1)
-
         batch_dict['point_features_before_fusion'] = point_features.view(-1, point_features.shape[-1])
-
-
-
-
         point_features = self.vsa_point_feature_fusion(point_features.view(-1, point_features.shape[-1]))
 
         batch_dict['point_features'] = point_features  # (BxN, C)
         batch_dict['point_coords'] = keypoints  # (BxN, 4)
+
+
+
         return batch_dict

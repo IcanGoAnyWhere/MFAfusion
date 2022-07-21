@@ -59,7 +59,7 @@ def build_dataloader(dataset_cfg, class_names, batch_size, dist, root_path=None,
         assert hasattr(dataset, 'merge_all_iters_to_one_epoch')
         dataset.merge_all_iters_to_one_epoch(merge=True, epochs=total_epochs)
 
-    if dist:
+    if dist:    # 分布式训练
         if training:
             sampler = torch.utils.data.distributed.DistributedSampler(dataset)
         else:

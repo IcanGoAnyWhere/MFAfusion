@@ -9,12 +9,14 @@ from .caddn import CaDDN
 from .voxel_rcnn import VoxelRCNN
 from .centerpoint import CenterPoint
 from .pv_rcnn_plusplus import PVRCNNPlusPlus
+from .VPfusion import VPfusion
 
 __all__ = {
     'Detector3DTemplate': Detector3DTemplate,
     'SECONDNet': SECONDNet,
     'PartA2Net': PartA2Net,
     'PVRCNN': PVRCNN,
+    'VPfusion': VPfusion,
     'PointPillar': PointPillar,
     'PointRCNN': PointRCNN,
     'SECONDNetIoU': SECONDNetIoU,

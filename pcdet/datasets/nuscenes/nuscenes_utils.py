@@ -6,12 +6,14 @@ https://github.com/traveller59/second.pytorch and https://github.com/poodarchu/D
 import operator
 from functools import reduce
 from pathlib import Path
+import matplotlib.pyplot as plt
 
 import numpy as np
 import tqdm
 from nuscenes.utils.data_classes import Box
 from nuscenes.utils.geometry_utils import transform_matrix
 from pyquaternion import Quaternion
+from nuscenes.nuscenes import NuScenesExplorer
 
 map_name_from_general_to_detection = {
     'human.pedestrian.adult': 'pedestrian',
@@ -267,9 +269,26 @@ def fill_trainval_infos(data_path, nusc, train_scenes, val_scenes, test=False, m
         ref_time = 1e-6 * ref_sd_rec['timestamp']
 
         ref_lidar_path, ref_boxes, _ = get_sample_data(nusc, ref_sd_token)
-
         ref_cam_front_token = sample['data']['CAM_FRONT']
         ref_cam_path, _, ref_cam_intrinsic = nusc.get_sample_data(ref_cam_front_token)
+
+        # 获取转换矩阵
+        cam = nusc.get('sample_data', ref_cam_front_token)
+        pointsensor = ref_sd_rec
+        nuex = NuScenesExplorer(nusc)
+
+        # pc, color, image = nuex.map_pointcloud_to_image(pointsensor_token=ref_sd_token, camera_token=ref_cam_front_token)
+        # plt.imshow(image)
+        # plt.scatter(pc[0,:],pc[1,:],c=color,s=5)
+        # plt.show()
+
+        transform = []
+        transform.append(nusc.get('calibrated_sensor', pointsensor['calibrated_sensor_token']))
+        transform.append(nusc.get('ego_pose', pointsensor['ego_pose_token']))
+        transform.append(nusc.get('ego_pose', cam['ego_pose_token']))
+        transform.append(nusc.get('calibrated_sensor', cam['calibrated_sensor_token']))
+
+
 
         # Homogeneous transform from ego car frame to reference frame
         ref_from_car = transform_matrix(
@@ -286,9 +305,12 @@ def fill_trainval_infos(data_path, nusc, train_scenes, val_scenes, test=False, m
             'cam_front_path': Path(ref_cam_path).relative_to(data_path).__str__(),
             'cam_intrinsic': ref_cam_intrinsic,
             'token': sample['token'],
+            'cam_info': cam,
+            'lidar_info': pointsensor,
             'sweeps': [],
             'ref_from_car': ref_from_car,
             'car_from_global': car_from_global,
+            'transform': transform,
             'timestamp': ref_time,
         }
 
@@ -360,7 +382,10 @@ def fill_trainval_infos(data_path, nusc, train_scenes, val_scenes, test=False, m
             rots = np.array([quaternion_yaw(b.orientation) for b in ref_boxes]).reshape(-1, 1)
             names = np.array([b.name for b in ref_boxes])
             tokens = np.array([b.token for b in ref_boxes])
-            gt_boxes = np.concatenate([locs, dims, rots, velocity[:, :2]], axis=1)
+            # 为了和pointhead对应去掉了速度
+            # gt_boxes = np.concatenate([locs, dims, rots, velocity[:, :2]], axis=1)
+
+            gt_boxes = np.concatenate([locs, dims, rots], axis=1)
 
             assert len(annotations) == len(gt_boxes) == len(velocity)
 
