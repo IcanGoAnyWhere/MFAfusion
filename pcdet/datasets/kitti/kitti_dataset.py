@@ -80,7 +80,7 @@ class KittiDataset(DatasetTemplate):
         image = io.imread(img_file)
         image = image.astype(np.float32)
         image /= 255.0
-        imback = np.zeros([384, 1280, 3], dtype=np.float)
+        imback = np.zeros([384, 1242, 3], dtype=np.float)
         imback[:image.shape[0], :image.shape[1], :] = image
         return imback
 
@@ -417,6 +417,7 @@ class KittiDataset(DatasetTemplate):
             # zeros = np.zeros((np.size(noise, 0),1))
             # noise = np.concatenate((noise,zeros),axis=1)
             # points += noise
+
             # # points = np.concatenate((points,noise),axis=0)
 
             if self.dataset_cfg.FOV_POINTS_ONLY:

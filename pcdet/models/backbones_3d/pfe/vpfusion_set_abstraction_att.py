@@ -22,6 +22,7 @@ class Fusion_Conv(nn.Module):
         super(Fusion_Conv, self).__init__()
         self.conv1_IMG = nn.Conv1d(IMG_chl, L_chl, 1)
         self.conv1_L = nn.Conv1d(L_chl, L_chl, 1)
+        self.ln = nn.LayerNorm(4096)
 
         # self.conv1 = torch.nn.Conv1d(L_chl*2, L_chl, 1)
         # self.bn1 = torch.nn.BatchNorm1d(L_chl)
@@ -36,10 +37,10 @@ class Fusion_Conv(nn.Module):
         weightmap = nn.functional.softmax(score, dim=1)
         img_features_att = weightmap * IMG_qurey
         L_features_att = (1-weightmap) * L_query
-        fusion_features = img_features_att + L_features_att
+        fusion_features = self.ln(img_features_att + L_features_att)
 
-
-        # t1 = torch.sum(weightmap[0,:,0])
+        m = weightmap[0, :, 22]
+        t1 = torch.sum(weightmap[0,:,0])
 
         # fusion_features = torch.cat([L_query, img_features_att], dim=1)
         # fusion_features = F.relu(self.bn1(self.conv1(fusion_features)))
@@ -330,8 +331,8 @@ class VPSAwithAtt(nn.Module):
     def get_sample_feature(self, uv, featuremap, size_range):
 
         img_uv = copy.deepcopy(uv)
-        img_uv[:, :, 0] = uv[:, :, 0] / (size_range[0] - 1.0) * 2.0 - 1.0
-        img_uv[:, :, 1] = uv[:, :, 1] / (size_range[1] - 1.0) * 2.0 - 1.0
+        img_uv[:, :, 0] = uv[:, :, 0] / (size_range[3] - 1.0) * 2.0 - 1.0
+        img_uv[:, :, 1] = uv[:, :, 1] / (size_range[2] - 1.0) * 2.0 - 1.0
         img_uv = img_uv.unsqueeze(1).cuda().type(torch.float32)
         img_sample_feature = grid_sample(featuremap, img_uv).squeeze(2)
 
@@ -515,10 +516,10 @@ class VPSAwithAtt(nn.Module):
             VP_features_list = []
             for i, img_src_name in enumerate(multi_img_features):
                 pts_lidar2img_bs = pts_lidar2img_list[num_keypoints*bs:num_keypoints*(bs+1),:]
-                xy_1 = pts_lidar2img_bs[:, [0, 1]] / 2 ** (i + 1)
+                xy_1 = pts_lidar2img_bs[:, [0, 1]] / 2 ** (i + 2)
                 xy = torch.tensor(xy_1).unsqueeze(0)
                 featuremap = multi_img_features[img_src_name][bs,:,:,:].unsqueeze(0)
-
+                size_range = featuremap.size()
                 img_sample_feature = self.get_sample_feature(xy, featuremap, size_range)
 
 
@@ -552,22 +553,23 @@ class VPSAwithAtt(nn.Module):
         # print(featuremap_list[0][0,0,0,0])
 
         if self.model_cfg.DEBUG:
-            idx = 0
+            bs = 0
+            idx = 1
             # 获取图片
-            imgbatch = tv.utils.make_grid(batch_dict['images'][idx,:,:,:]).cpu().numpy()
-            # img_cov1 = tv.utils.make_grid(featuremap_list[0]).cpu()[0:3, :, :]
-            # imgbatch = img_cov1.detach().numpy()
+            # imgbatch = tv.utils.make_grid(batch_dict['images'][bs,:,:,:]).cpu().numpy()
+            img_cov1 = tv.utils.make_grid(featuremap_list[idx]).cpu()[0:3, :, :]
+            imgbatch = img_cov1.detach().numpy()
 
             plt.imshow(np.transpose(imgbatch, (1, 2, 0)))
-            # u = xylist[0][:,:, 0]
-            # v = xylist[0][:,:, 1]
+            u = xylist[idx][:,:, 0]
+            v = xylist[idx][:,:, 1]
 
-            u = pts_lidar2img_list[num_keypoints*idx:num_keypoints*(idx+1), 0]
-            v = pts_lidar2img_list[num_keypoints*idx:num_keypoints*(idx+1), 1]
+            # u = pts_lidar2img_list[num_keypoints*idx:num_keypoints*(idx+1), 0]
+            # v = pts_lidar2img_list[num_keypoints*idx:num_keypoints*(idx+1), 1]
             colormap = weightmap_list[0].squeeze(0).cpu().numpy()
             colormap_index = np.argmax(colormap, axis=0)
 
-            plt.scatter(u, v, s=0.5, c=colormap_index, cmap='cool')
+            plt.scatter(u, v, s=0.5, c=colormap_index, cmap='gray')
             plt.show()
 
             # pointshow = batch_dict['points'][:, 1:4].cpu().numpy()

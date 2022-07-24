@@ -26,7 +26,7 @@ def parse_config():
     parser.add_argument('--workers', type=int, default=4, help='number of workers for dataloader')
     parser.add_argument('--extra_tag', type=str, default='default', help='extra tag for this experiment')
     parser.add_argument('--ckpt', type=str,
-                        default='../output/kitti_models/VPfusionRCNN_kitti/default/ckpt/softmax_48_4096_87.pth',
+                        default='../output/kitti_models/VPfusionRCNN_kitti/default/ckpt/0.pth',
                         help='checkpoint to start from')
     parser.add_argument('--launcher', choices=['none', 'pytorch', 'slurm'], default='none')
     parser.add_argument('--tcp_port', type=int, default=18888, help='tcp port for distrbuted training')

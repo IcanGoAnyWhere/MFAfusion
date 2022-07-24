@@ -76,9 +76,11 @@ def parse_config():
     # parser.add_argument('--data_path', type=str, default='../data/nuscenes',
     #                     help='specify the point cloud data file or directory')
 
+    # '../output/kitti_models/VPfusionRCNN_kitti/default/ckpt/softmax_55_4096.pth'
     parser.add_argument('--ckpt', type=str,
-                        default='../output/kitti_models/VPfusionRCNN_kitti/default/ckpt/softmax_55.pth',
+                        default='../output/kitti_models/VPfusionRCNN_kitti/default/ckpt/checkpoint_epoch_57.pth',
                         help='specify the pretrained model')
+
     parser.add_argument('--ext', type=str, default='.bin', help='specify the extension of your point cloud data file')
 
     args = parser.parse_args()

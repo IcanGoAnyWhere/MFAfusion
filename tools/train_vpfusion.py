@@ -16,7 +16,7 @@ from pcdet.models import build_network, model_fn_decorator
 from pcdet.utils import common_utils
 from train_utils.optimization import build_optimizer, build_scheduler
 from train_utils.train_utils import train_model
-
+from torchvision._internally_replaced_utils import load_state_dict_from_url
 
 def parse_config():
     parser = argparse.ArgumentParser(description='arg parser')
@@ -34,9 +34,10 @@ def parse_config():
                         help='checkpoint to start from')
 
     # '../output/kitti_models/pv_rcnn_8369.pth'
-    parser.add_argument('--pretrained_model', type=str,
+    parser.add_argument('--pretrained_model_lidar', type=str,
                         default='../output/kitti_models/pv_rcnn_8369.pth',
                         help='pretrained_model')
+
     parser.add_argument('--launcher', choices=['none', 'pytorch', 'slurm'], default='none')
     parser.add_argument('--tcp_port', type=int, default=18888, help='tcp port for distrbuted training')
     parser.add_argument('--sync_bn', action='store_true', default=False, help='whether to use sync bn')
@@ -132,8 +133,9 @@ def main():
     # load checkpoint if it is possible
     start_epoch = it = 0
     last_epoch = -1
-    if args.pretrained_model is not None:
-        model.load_params_from_file(filename=args.pretrained_model, to_cpu=dist_train, logger=logger)
+    if args.pretrained_model_lidar is not None:
+        model.load_params_from_file(filename=args.pretrained_model_lidar, to_cpu=dist_train, logger=logger)
+
 
     if args.ckpt is not None:
         it, start_epoch = model.load_params_with_optimizer(args.ckpt, to_cpu=dist_train, optimizer=optimizer, logger=logger)
@@ -154,10 +156,8 @@ def main():
     for child in model.children():
 
         for para in child.parameters():
-            if ct < 2:
+            if ct < 0:
                 para.requires_grad = False
-            # else:
-            #     para.requires_grad = False
         ct += 1
 
 
