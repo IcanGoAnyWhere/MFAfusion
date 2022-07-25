@@ -156,7 +156,7 @@ def main():
     for child in model.children():
 
         for para in child.parameters():
-            if ct < 0:
+            if ct < 3:
                 para.requires_grad = False
         ct += 1
 

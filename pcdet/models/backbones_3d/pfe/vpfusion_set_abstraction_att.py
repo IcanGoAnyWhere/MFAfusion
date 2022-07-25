@@ -16,6 +16,46 @@ from ....ops.pointnet2.pointnet2_stack import pointnet2_modules as pointnet2_sta
 from ....ops.pointnet2.pointnet2_stack import pointnet2_utils as pointnet2_stack_utils
 from ....utils import common_utils, calibration_kitti
 
+class Fusion_Conv_att(nn.Module):
+    def __init__(self, IMG_chl, L_chl):
+
+        super(Fusion_Conv_att, self).__init__()
+        #multihead
+        self.IMG_head = nn.ModuleList()
+        self.headnum = 4
+        for i in range(self.headnum):
+            self.IMG_head.append(nn.Conv1d(IMG_chl, L_chl, 1))
+        self.conv_L = nn.Conv1d(L_chl, L_chl, 1)
+        self.ln = nn.LayerNorm(4096)
+
+        self.conv_fusion = torch.nn.Conv1d(L_chl, L_chl, 1)
+        # self.bn1 = torch.nn.BatchNorm1d(L_chl)
+
+
+    def forward(self, point_features, img_features):
+        # print(point_features.shape, img_features.shape)
+        IMG_key = []
+        L_query = self.conv_L(point_features)
+        score = []
+        dk = L_query.size(1)
+        pointnum = L_query.size(2)
+        for i in range(self.headnum):
+            # IMG_key.append(self.IMG_head[i](img_features))
+            IMG_key_cr = self.IMG_head[i](img_features)
+            IMG_key.append(IMG_key_cr)
+            score.append(torch.sum(torch.mul(IMG_key_cr, L_query),dim=1)/math.sqrt(dk))
+        score = torch.cat(score)
+        weightmap = torch.softmax(score, dim=0).unsqueeze(0)
+
+        z = torch.tensor(np.zeros([1,dk,pointnum])).to(torch.float32).cuda()
+        for i in range(self.headnum):
+            z_cr = torch.mul(weightmap[:,i,:], IMG_key[i])
+            z += z_cr
+        fusion_features = self.conv_fusion(self.ln(z + L_query))
+
+
+        return fusion_features
+
 class Fusion_Conv(nn.Module):
     def __init__(self, IMG_chl, L_chl):
 
@@ -45,7 +85,7 @@ class Fusion_Conv(nn.Module):
         # fusion_features = torch.cat([L_query, img_features_att], dim=1)
         # fusion_features = F.relu(self.bn1(self.conv1(fusion_features)))
 
-        return fusion_features, score
+        return fusion_features, weightmap
 
 
 def bilinear_interpolate_torch(im, x, y):
@@ -216,7 +256,7 @@ class VPSAwithAtt(nn.Module):
         self.num_point_features_before_fusion = c_in
 
         for i in range(len(model_cfg.IMG_CHANNELS) - 1):
-            self.Fusion_Conv.append(Fusion_Conv(model_cfg.IMG_CHANNELS[i + 1],
+            self.Fusion_Conv.append(Fusion_Conv_att(model_cfg.IMG_CHANNELS[i + 1],
                                                 model_cfg.POINT_CHANNELS[i]))
 
     def interpolate_from_bev_features(self, keypoints, bev_features, batch_size, bev_stride):
@@ -522,12 +562,10 @@ class VPSAwithAtt(nn.Module):
                 size_range = featuremap.size()
                 img_sample_feature = self.get_sample_feature(xy, featuremap, size_range)
 
-
-
                 featuremap_list.append(featuremap)
                 lidar_feature = point_features_list[i + 1].permute(1, 0).unsqueeze(0)
                 lidar_feature = lidar_feature[:,:,num_keypoints*bs:num_keypoints*(bs+1)]
-                VP_features, weightmap = self.Fusion_Conv[i](lidar_feature, img_sample_feature)
+                VP_features = self.Fusion_Conv[i](lidar_feature, img_sample_feature)
                 VP_features_list.append(VP_features)
 
                 if self.model_cfg.DEBUG:
@@ -556,20 +594,20 @@ class VPSAwithAtt(nn.Module):
             bs = 0
             idx = 1
             # 获取图片
-            # imgbatch = tv.utils.make_grid(batch_dict['images'][bs,:,:,:]).cpu().numpy()
-            img_cov1 = tv.utils.make_grid(featuremap_list[idx]).cpu()[0:3, :, :]
-            imgbatch = img_cov1.detach().numpy()
+            imgbatch = tv.utils.make_grid(batch_dict['images'][bs,:,:,:]).cpu().numpy()
+            # img_cov1 = tv.utils.make_grid(featuremap_list[idx]).cpu()[0:3, :, :]
+            # imgbatch = img_cov1.detach().numpy()
 
             plt.imshow(np.transpose(imgbatch, (1, 2, 0)))
-            u = xylist[idx][:,:, 0]
-            v = xylist[idx][:,:, 1]
+            # u = xylist[idx][:,:, 0]
+            # v = xylist[idx][:,:, 1]
 
-            # u = pts_lidar2img_list[num_keypoints*idx:num_keypoints*(idx+1), 0]
-            # v = pts_lidar2img_list[num_keypoints*idx:num_keypoints*(idx+1), 1]
+            u = pts_lidar2img_list[num_keypoints*bs:num_keypoints*(bs+1), 0]
+            v = pts_lidar2img_list[num_keypoints*bs:num_keypoints*(bs+1), 1]
             colormap = weightmap_list[0].squeeze(0).cpu().numpy()
             colormap_index = np.argmax(colormap, axis=0)
 
-            plt.scatter(u, v, s=0.5, c=colormap_index, cmap='gray')
+            plt.scatter(u, v, s=0.5, c=colormap_index, cmap='cool')
             plt.show()
 
             # pointshow = batch_dict['points'][:, 1:4].cpu().numpy()
