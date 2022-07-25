@@ -78,7 +78,7 @@ def parse_config():
 
     # '../output/kitti_models/VPfusionRCNN_kitti/default/ckpt/softmax_55_4096.pth'
     parser.add_argument('--ckpt', type=str,
-                        default='../output/kitti_models/VPfusionRCNN_kitti/default/ckpt/checkpoint_epoch_44.pth',
+                        default='../output/kitti_models/VPfusionRCNN_kitti/default/ckpt/checkpoint_epoch_6.pth',
                         help='specify the pretrained model')
 
     parser.add_argument('--ext', type=str, default='.bin', help='specify the extension of your point cloud data file')

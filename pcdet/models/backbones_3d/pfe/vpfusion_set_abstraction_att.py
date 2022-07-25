@@ -40,7 +40,7 @@ class Fusion_Conv_att(nn.Module):
         dk = L_query.size(1)
         pointnum = L_query.size(2)
         for i in range(self.headnum):
-            # IMG_key.append(self.IMG_head[i](img_features))
+
             IMG_key_cr = self.IMG_head[i](img_features)
             IMG_key.append(IMG_key_cr)
             score.append(torch.sum(torch.mul(IMG_key_cr, L_query),dim=1)/math.sqrt(dk))
@@ -570,7 +570,7 @@ class VPSAwithAtt(nn.Module):
 
                 if self.model_cfg.DEBUG:
                     xylist.append(copy.deepcopy(xy))
-                    weightmap_list.append(weightmap)
+                    # weightmap_list.append(weightmap)
 
             VP_features_cat_1.append(VP_features_list[0])
             VP_features_cat_2.append(VP_features_list[1])
@@ -604,10 +604,10 @@ class VPSAwithAtt(nn.Module):
 
             u = pts_lidar2img_list[num_keypoints*bs:num_keypoints*(bs+1), 0]
             v = pts_lidar2img_list[num_keypoints*bs:num_keypoints*(bs+1), 1]
-            colormap = weightmap_list[0].squeeze(0).cpu().numpy()
-            colormap_index = np.argmax(colormap, axis=0)
-
-            plt.scatter(u, v, s=0.5, c=colormap_index, cmap='cool')
+            # colormap = weightmap_list[0].squeeze(0).cpu().numpy()
+            # colormap_index = np.argmax(colormap, axis=0)
+            # plt.scatter(u, v, s=0.5, c=colormap_index, cmap='cool')
+            plt.scatter(u, v, s=0.5)
             plt.show()
 
             # pointshow = batch_dict['points'][:, 1:4].cpu().numpy()
