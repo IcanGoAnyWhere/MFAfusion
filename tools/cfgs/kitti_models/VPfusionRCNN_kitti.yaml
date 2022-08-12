@@ -158,7 +158,7 @@ MODEL:
         NAME: PointHeadSimple
         CLS_FC: [256, 256]
         CLASS_AGNOSTIC: True
-        USE_POINT_FEATURES_BEFORE_FUSION: True
+        USE_POINT_FEATURES_BEFORE_FUSION: False
         TARGET_CONFIG:
             GT_EXTRA_WIDTH: [0.2, 0.2, 0.2]
         LOSS_CONFIG:
@@ -259,14 +259,14 @@ MODEL:
         NMS_CONFIG:
             MULTI_CLASSES_NMS: False
             NMS_TYPE: nms_gpu
-            NMS_THRESH: 0.1
+            NMS_THRESH: 0.01
             NMS_PRE_MAXSIZE: 4096
             NMS_POST_MAXSIZE: 500
 
 
 OPTIMIZATION:
     BATCH_SIZE_PER_GPU: 4
-    NUM_EPOCHS: 55
+    NUM_EPOCHS: 70
 
     OPTIMIZER: adam_onecycle
     LR: 0.01
@@ -280,7 +280,7 @@ OPTIMIZATION:
     LR_DECAY: 0.1
     LR_CLIP: 0.0000001
 
-    LR_WARMUP: True
+    LR_WARMUP: False
     WARMUP_EPOCH: 5
 
     GRAD_NORM_CLIP: 10

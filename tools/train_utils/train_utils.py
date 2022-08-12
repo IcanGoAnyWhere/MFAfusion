@@ -48,7 +48,7 @@ def train_one_epoch(model, optimizer, train_loader, model_func, lr_scheduler, ac
 
         forward_timer = time.time()
         cur_forward_time = forward_timer - data_timer
-        loss_batch = loss
+        loss_batch = loss/16
         loss_batch.backward()
         clip_grad_norm_(model.parameters(), optim_cfg.GRAD_NORM_CLIP)
 

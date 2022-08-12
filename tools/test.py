@@ -20,13 +20,14 @@ from pcdet.utils import common_utils
 
 def parse_config():
     parser = argparse.ArgumentParser(description='arg parser')
-    parser.add_argument('--cfg_file', type=str, default='cfgs/kitti_models/VPfusionRCNN_kitti.yaml',
+    parser.add_argument('--cfg_file', type=str, default='cfgs/kitti_models/VPfusion_kitti.yaml',
                         help='specify the config for training')
-    parser.add_argument('--batch_size', type=int, default=1, required=False, help='batch size for training')
-    parser.add_argument('--workers', type=int, default=4, help='number of workers for dataloader')
+    parser.add_argument('--batch_size', type=int, default=4, required=False, help='batch size for training')
+    parser.add_argument('--workers', type=int, default=12, help='number of workers for dataloader')
     parser.add_argument('--extra_tag', type=str, default='default', help='extra tag for this experiment')
+    # ../output/kitti_models/VPfusion_kitti/default/ckpt/
     parser.add_argument('--ckpt', type=str,
-                        default='../output/kitti_models/VPfusionRCNN_kitti/default/ckpt/checkpoint_epoch_6.pth',
+                        default='../output/kitti_models/compare/checkpoint_epoch_49.pth',
                         help='checkpoint to start from')
     parser.add_argument('--launcher', choices=['none', 'pytorch', 'slurm'], default='none')
     parser.add_argument('--tcp_port', type=int, default=18888, help='tcp port for distrbuted training')
@@ -46,7 +47,7 @@ def parse_config():
     cfg_from_yaml_file(args.cfg_file, cfg)
     cfg.TAG = Path(args.cfg_file).stem
     cfg.EXP_GROUP_PATH = '/'.join(args.cfg_file.split('/')[1:-1])  # remove 'cfgs' and 'xxxx.yaml'
-
+    common_utils.set_random_seed(666)
     np.random.seed(1024)
 
     if args.set_cfgs is not None:
@@ -136,6 +137,7 @@ def repeat_eval_ckpt(model, test_loader, args, eval_output_dir, logger, ckpt_dir
 
 def main():
     args, cfg = parse_config()
+    np.random.seed(1024)
     if args.launcher == 'none':
         dist_test = False
         total_gpus = 1

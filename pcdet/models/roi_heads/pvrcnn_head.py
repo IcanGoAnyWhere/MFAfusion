@@ -1,5 +1,6 @@
+import numpy as np
 import torch.nn as nn
-
+import open3d as o3d
 from ...ops.pointnet2.pointnet2_stack import pointnet2_modules as pointnet2_stack_modules
 from ...utils import common_utils
 from .roi_head_template import RoIHeadTemplate
@@ -80,6 +81,19 @@ class PVRCNNHead(RoIHeadTemplate):
         point_features = batch_dict['point_features']
 
         point_features = point_features * batch_dict['point_cls_scores'].view(-1, 1)
+
+        # visual front point
+        # lable = batch_dict['point_cls_scores'].view(-1, 1).cpu().numpy()
+        # lable_mask = np.where(lable>0.05)
+        #
+        # visualize_point = point_coords[:,1:4][lable_mask[0]].cpu().numpy()
+        # sumlable = str(np.shape(visualize_point))
+        # pcd_point = o3d.geometry.PointCloud()
+        # pcd_point.points = o3d.utility.Vector3dVector(visualize_point)
+        # o3d.visualization.draw_geometries([pcd_point], window_name=sumlable,
+        #                                   width=1024, height=768,
+        #                                   left=50, top=50,
+        #                                   mesh_show_back_face=False)
 
         global_roi_grid_points, local_roi_grid_points = self.get_global_grid_points_of_roi(
             rois, grid_size=self.model_cfg.ROI_GRID_POOL.GRID_SIZE

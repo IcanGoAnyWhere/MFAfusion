@@ -79,7 +79,8 @@ class KittiDataset(DatasetTemplate):
         assert img_file.exists()
         image_cv = cv.imread(str(img_file))
         # Blur
-        image_cv = cv.GaussianBlur(image_cv, (0,0), 2)
+        if np.int(idx)%2 ==1:
+            image_cv = cv.GaussianBlur(image_cv, (33,33), 5)
 
         image_cv = cv.cvtColor(image_cv, cv.COLOR_BGR2RGB)
         image_cv = np.float32(image_cv)
@@ -416,12 +417,16 @@ class KittiDataset(DatasetTemplate):
         if "points" in get_item_list:
             points = self.get_lidar(sample_idx)
 
-            # index_rdm = np.random.choice(np.size(points,0),5000)
+            if np.int(sample_idx) % 2 == 1:
+                noise = 0.2*np.random.rand(np.size(points,0), np.size(points,1)-1)
+                zeros = np.zeros((np.size(noise, 0),1))
+                noise = np.concatenate((noise,zeros),axis=1)
+                points += noise
 
-            noise = 0.2*np.random.rand(np.size(points,0), np.size(points,1)-1)
-            zeros = np.zeros((np.size(noise, 0),1))
-            noise = np.concatenate((noise,zeros),axis=1)
-            points += noise
+                # mask = np.random.randint(0, 2, (np.size(points, 0), 1))
+                # mask = np.where(mask > 0)
+                # points = points[mask[0]]
+
 
             # # points = np.concatenate((points,noise),axis=0)
 

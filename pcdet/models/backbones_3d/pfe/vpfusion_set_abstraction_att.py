@@ -8,7 +8,7 @@ import matplotlib
 from torch.nn.functional import grid_sample
 matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
-import open3d
+import open3d as o3d
 import torch.nn.functional as F
 
 from nuscenes.utils.geometry_utils import view_points
@@ -51,41 +51,27 @@ class Fusion_Conv_att(nn.Module):
         for i in range(self.headnum):
             z_cr = torch.mul(weightmap[:,i,:], IMG_key[i])
             z += z_cr
-        fusion_features = self.conv_fusion(self.ln(z + L_query))
+        fusion_features = self.conv_fusion(self.ln(z+L_query))
+        # fusion_features = z
 
 
-        return fusion_features
+        return fusion_features,weightmap
 
 class Fusion_Conv(nn.Module):
     def __init__(self, IMG_chl, L_chl):
 
         super(Fusion_Conv, self).__init__()
-        self.conv1_IMG = nn.Conv1d(IMG_chl, L_chl, 1)
-        self.conv1_L = nn.Conv1d(L_chl, L_chl, 1)
-        self.ln = nn.LayerNorm(4096)
-
-        # self.conv1 = torch.nn.Conv1d(L_chl*2, L_chl, 1)
-        # self.bn1 = torch.nn.BatchNorm1d(L_chl)
+        self.conv1 = torch.nn.Conv1d(L_chl+IMG_chl, L_chl, 1)
+        self.bn1 = torch.nn.BatchNorm1d(L_chl)
 
 
     def forward(self, point_features, img_features):
         # print(point_features.shape, img_features.shape)
-        IMG_qurey = self.conv1_IMG(img_features)
-        L_query = self.conv1_L(point_features)
-        dk = L_query.size(1)
-        score = torch.mul(IMG_qurey, L_query)/math.sqrt(dk)
-        weightmap = nn.functional.softmax(score, dim=1)
-        img_features_att = weightmap * IMG_qurey
-        L_features_att = (1-weightmap) * L_query
-        fusion_features = self.ln(img_features_att + L_features_att)
 
-        m = weightmap[0, :, 22]
-        t1 = torch.sum(weightmap[0,:,0])
+        fusion_features = torch.cat([point_features, img_features], dim=1)
+        fusion_features = F.relu(self.bn1(self.conv1(fusion_features)))
 
-        # fusion_features = torch.cat([L_query, img_features_att], dim=1)
-        # fusion_features = F.relu(self.bn1(self.conv1(fusion_features)))
-
-        return fusion_features, weightmap
+        return fusion_features
 
 
 def bilinear_interpolate_torch(im, x, y):
@@ -310,14 +296,15 @@ class VPSAwithAtt(nn.Module):
         )
         return sampled_points
 
-    def get_sampled_points(self, batch_dict):
-        """
-        Args:
-            batch_dict:
+    def vector_angle(self,x, y):
+        lx = np.sqrt(x.dot(x))
+        ly = (np.sum(y ** 2, axis=1)) ** 0.5
+        cos_angle = np.sum(x * y, axis=1) / (lx * ly)
+        angle = np.arccos(cos_angle)  # arccos计算出的角度是弧度制
+        angle2 = np.degrees(angle)  # 阈值设置中用的是角度制，因此这里需要将弧度转换为角度
+        return angle2
 
-        Returns:
-            keypoints: (N1 + N2 + ..., 4), where 4 indicates [bs_idx, x, y, z]
-        """
+    def get_curvature_sampled_points(self, batch_dict):
         batch_size = batch_dict['batch_size']
         if self.model_cfg.POINT_SOURCE == 'raw_points':
             src_points = batch_dict['points'][:, 1:4]
@@ -335,8 +322,83 @@ class VPSAwithAtt(nn.Module):
         keypoints_list = []
         for bs_idx in range(batch_size):
             bs_mask = (batch_indices == bs_idx)
+            sampled_points = src_points[bs_mask]
+            knn_num = 300  # 自定义参数值(邻域点数)
+            angle_thre = 30  # 自定义参数值(角度制度)
+            N = 5  # 自定义参数值(每N个点采样一次)
+            C = 10  # 自定义参数值(采样均匀性>N)
+
+            src_points = sampled_points.cpu().contiguous()
+            point = np.asarray(src_points)
+            pcd = o3d.geometry.PointCloud()
+            pcd.points = o3d.utility.Vector3dVector(point)
+            point_size = src_points.shape[0]
+            tree = o3d.geometry.KDTreeFlann(pcd)  # 建立KD树索引
+            o3d.geometry.PointCloud.estimate_normals(
+                pcd, search_param=o3d.geometry.KDTreeSearchParamKNN(knn=knn_num))  # 计算法向量
+            normal = np.asarray(pcd.normals)
+            normal_angle = np.zeros(point_size)
+
+            for i in range(point_size):
+                [_, idx, dis] = tree.search_knn_vector_3d(point[i], knn_num + 1)
+                current_normal = normal[i]
+                knn_normal = normal[idx[1:]]
+                normal_angle[i] = np.mean(self.vector_angle(current_normal, knn_normal))
+
+            point_high = point[np.where(normal_angle >= angle_thre)]  # 位于特征明显区域的点
+
+            pcd_high = o3d.geometry.PointCloud()
+            pcd_high.points = o3d.utility.Vector3dVector(point_high)
+
+            finl_point_size = np.asarray(pcd_high.points).shape[0]
+            print("原始点云点的个数为：", point_size)
+            print("下采样后点的个数为：", finl_point_size)
+            o3d.visualization.draw_geometries([pcd_high], window_name="曲率下采样",
+                                              width=1024, height=768,
+                                              left=50, top=50,
+                                              mesh_show_back_face=False)
+            keypoints = torch.tensor(point_high).cuda()
+            keypoints_list.append(keypoints)
+
+        keypoints = torch.cat(keypoints_list, dim=0)  # (B, M, 3) or (N1 + N2 + ..., 4)
+        if len(keypoints.shape) == 3:
+            batch_idx = torch.arange(batch_size, device=keypoints.device).view(-1, 1).repeat(1,keypoints.shape[1]).view(-1, 1)
+            keypoints = torch.cat((batch_idx.float(), keypoints.view(-1, 3)), dim=1)
+
+        return keypoints
+
+
+    def get_sampled_points(self, batch_dict):
+        """
+        Args:
+            batch_dict:
+
+        Returns:
+            keypoints: (N1 + N2 + ..., 4), where 4 indicates [bs_idx, x, y, z]
+        """
+        batch_size = batch_dict['batch_size']
+        num_keypoints = self.model_cfg['NUM_KEYPOINTS']
+        if self.model_cfg.POINT_SOURCE == 'raw_points':
+            src_points = batch_dict['points'][:, 1:4]
+            batch_indices = batch_dict['points'][:, 0].long()
+        elif self.model_cfg.POINT_SOURCE == 'voxel_centers':
+            src_points = common_utils.get_voxel_centers(
+                batch_dict['voxel_coords'][:, 1:4],
+                downsample_times=1,
+                voxel_size=self.voxel_size,
+                point_cloud_range=self.point_cloud_range
+            )
+            batch_indices = batch_dict['voxel_coords'][:, 0].long()
+        else:
+            raise NotImplementedError
+        keypoints_list = []
+        pts_lidar2img_list = []
+        for bs_idx in range(batch_size):
+            bs_mask = (batch_indices == bs_idx)
             sampled_points = src_points[bs_mask].unsqueeze(dim=0)  # (1, N, 3)
+
             if self.model_cfg.SAMPLE_METHOD == 'FPS':
+
                 cur_pt_idxs = pointnet2_stack_utils.farthest_point_sample(
                     sampled_points[:, :, 0:3].contiguous(), self.model_cfg.NUM_KEYPOINTS
                 ).long()
@@ -348,25 +410,142 @@ class VPSAwithAtt(nn.Module):
 
                 keypoints = sampled_points[0][cur_pt_idxs[0]].unsqueeze(dim=0)
 
+                pts_lidar = sampled_points[0][cur_pt_idxs[0]].squeeze(0).cpu().numpy()
+                # filter ground
+                # pts_lidar_mask = np.where(pts_lidar[:,2]>-1.5)
+                # pts_lidar =pts_lidar[pts_lidar_mask]
+
+                pts_lidar = np.hstack((pts_lidar, np.ones((pts_lidar.shape[0], 1), dtype=np.float32)))
+                P2 = batch_dict['trans_cam_to_img'].squeeze(0).cpu().numpy()  # 内参矩阵
+                V2R = batch_dict['trans_lidar_to_cam'].squeeze(0).cpu().numpy()  # 外参矩阵
+                trans_matrix = np.matmul(P2, V2R)  # 转换矩阵
+
+                if batch_size != 1:
+                    trans = trans_matrix[bs_idx, :, :]
+                else:
+                    trans = trans_matrix
+                pts_lidar2img = np.matmul(trans, pts_lidar.T)
+                pts_lidar2img = np.transpose(pts_lidar2img)
+                pts_lidar2img = pts_lidar2img / pts_lidar2img[:, [2]]
+                pts_lidar2img = torch.tensor(pts_lidar2img).cuda().unsqueeze(0)
+
+
+            elif self.model_cfg.SAMPLE_METHOD == 'PFPS':
+                if 'kitti' in self.model_cfg.get('DATASET', None):
+
+                    # size_range = [1242.0, 375.0]
+
+                    pts_lidar = sampled_points.squeeze(0).cpu().numpy()
+                    # filter ground
+                    # pts_lidar_mask = np.where(pts_lidar[:,2]>-1.5)
+                    # pts_lidar =pts_lidar[pts_lidar_mask]
+
+                    pts_lidar = np.hstack((pts_lidar, np.ones((pts_lidar.shape[0], 1), dtype=np.float32)))
+                    P2 = batch_dict['trans_cam_to_img'].squeeze(0).cpu().numpy()  # 内参矩阵
+                    V2R = batch_dict['trans_lidar_to_cam'].squeeze(0).cpu().numpy()  # 外参矩阵
+                    trans_matrix = np.matmul(P2, V2R)  # 转换矩阵
+
+                    if batch_size != 1:
+                        trans = trans_matrix[bs_idx, :, :]
+                    else:
+                        trans = trans_matrix
+                    pts_lidar2img = np.matmul(trans, pts_lidar.T)
+                    pts_lidar2img = np.transpose(pts_lidar2img)
+                    pts_lidar2img = pts_lidar2img / pts_lidar2img[:, [2]]
+                    pts_lidar2img = torch.tensor(pts_lidar2img).cuda().unsqueeze(0)
+
+
+                cur_pt_idxs = pointnet2_stack_utils.farthest_point_sample(
+                    pts_lidar2img[:, :, 0:3].contiguous(), self.model_cfg.NUM_KEYPOINTS
+                ).long()
+
+                if sampled_points.shape[1] < self.model_cfg.NUM_KEYPOINTS:
+                    times = int(self.model_cfg.NUM_KEYPOINTS / sampled_points.shape[1]) + 1
+                    non_empty = cur_pt_idxs[0, :sampled_points.shape[1]]
+                    cur_pt_idxs[0] = non_empty.repeat(times)[:self.model_cfg.NUM_KEYPOINTS]
+                keypoints = sampled_points[0][cur_pt_idxs[0]].unsqueeze(dim=0)
+                pts_lidar2img = pts_lidar2img[0][cur_pt_idxs[0]].unsqueeze(dim=0)
+
+                # visualize_point = sampled_points[0][cur_pt_idxs[0]].cpu().numpy()
+                # pcd_point = o3d.geometry.PointCloud()
+                # pcd_point.points = o3d.utility.Vector3dVector(visualize_point)
+                # pcd_point.paint_uniform_color([0, 0, 1])
+                # o3d.visualization.draw_geometries([pcd_point], window_name="曲率下采样",
+                #                                   width=1024, height=768,
+                #                                   left=50, top=50,
+                #                                   mesh_show_back_face=False)
+
             elif self.model_cfg.SAMPLE_METHOD == 'SPC':
                 cur_keypoints = self.sectorized_proposal_centric_sampling(
                     roi_boxes=batch_dict['rois'][bs_idx], points=sampled_points[0]
                 )
                 bs_idxs = cur_keypoints.new_ones(cur_keypoints.shape[0]) * bs_idx
                 keypoints = torch.cat((bs_idxs[:, None], cur_keypoints), dim=1)
+
+            elif self.model_cfg.SAMPLE_METHOD == 'CBS':
+                bs_mask = (batch_indices == bs_idx)
+                sampled_points = src_points[bs_mask]
+                knn_num = 300  # 自定义参数值(邻域点数)
+                angle_thre = 30  # 自定义参数值(角度制度)
+                N = 5  # 自定义参数值(每N个点采样一次)
+                C = 10  # 自定义参数值(采样均匀性>N)
+
+                src_points = sampled_points.cpu().contiguous()
+                point = np.asarray(src_points)
+                pcd = o3d.geometry.PointCloud()
+                pcd.points = o3d.utility.Vector3dVector(point)
+                point_size = src_points.shape[0]
+                tree = o3d.geometry.KDTreeFlann(pcd)  # 建立KD树索引
+                o3d.geometry.PointCloud.estimate_normals(
+                    pcd, search_param=o3d.geometry.KDTreeSearchParamKNN(knn=knn_num))  # 计算法向量
+                normal = np.asarray(pcd.normals)
+                normal_angle = np.zeros(point_size)
+
+                for i in range(point_size):
+                    [_, idx, dis] = tree.search_knn_vector_3d(point[i], knn_num + 1)
+                    current_normal = normal[i]
+                    knn_normal = normal[idx[1:]]
+                    normal_angle[i] = np.mean(self.vector_angle(current_normal, knn_normal))
+
+                point_high = point[np.where(normal_angle >= angle_thre)]  # 位于特征明显区域的点
+
+                pcd_high = o3d.geometry.PointCloud()
+                pcd_high.points = o3d.utility.Vector3dVector(point_high)
+
+                finl_point_size = np.asarray(pcd_high.points).shape[0]
+                print("原始点云点的个数为：", point_size)
+                print("下采样后点的个数为：", finl_point_size)
+                # o3d.visualization.draw_geometries([pcd_high], window_name="曲率下采样",
+                #                                   width=1024, height=768,
+                #                                   left=50, top=50,
+                #                                   mesh_show_back_face=False)
+
+                sampled_points = torch.tensor(point_high).cuda().unsqueeze(dim=0)
+                cur_pt_idxs = pointnet2_stack_utils.farthest_point_sample(
+                    sampled_points[:, :, 0:3].contiguous(), self.model_cfg.NUM_KEYPOINTS
+                ).long()
+
+                if sampled_points.shape[1] < self.model_cfg.NUM_KEYPOINTS:
+                    times = int(self.model_cfg.NUM_KEYPOINTS / sampled_points.shape[1]) + 1
+                    non_empty = cur_pt_idxs[0, :sampled_points.shape[1]]
+                    cur_pt_idxs[0] = non_empty.repeat(times)[:self.model_cfg.NUM_KEYPOINTS]
+                keypoints = sampled_points[0][cur_pt_idxs[0]].unsqueeze(dim=0)
+
             else:
                 raise NotImplementedError
 
             keypoints_list.append(keypoints)
+            pts_lidar2img_list.append(pts_lidar2img)
 
+        keypoints_lidar2img = torch.cat(pts_lidar2img_list, dim=0)
         keypoints = torch.cat(keypoints_list, dim=0)  # (B, M, 3) or (N1 + N2 + ..., 4)
         if len(keypoints.shape) == 3:
-            batch_idx = torch.arange(batch_size, device=keypoints.device).view(-1, 1).repeat(1,
-                                                                                             keypoints.shape[1]).view(
-                -1, 1)
+            batch_idx = torch.arange(batch_size, device=keypoints.device).view(-1, 1).repeat(1,keypoints.shape[1]).view(-1, 1)
             keypoints = torch.cat((batch_idx.float(), keypoints.view(-1, 3)), dim=1)
+            keypoints_lidar2img = torch.cat((batch_idx.float(), keypoints_lidar2img.view(-1, 3)), dim=1)
 
-        return keypoints
+
+        return keypoints,keypoints_lidar2img
 
     def get_sample_feature(self, uv, featuremap, size_range):
 
@@ -449,7 +628,10 @@ class VPSAwithAtt(nn.Module):
             point_coords: (N, 4)
 
         """
-        keypoints = self.get_sampled_points(batch_dict)
+        batch_size = batch_dict['batch_size']
+
+        keypoints, keypoints_lidar2img = self.get_sampled_points(batch_dict)
+
 
         point_features_list = []
         if 'bev' in self.model_cfg.FEATURES_SOURCE:
@@ -459,7 +641,7 @@ class VPSAwithAtt(nn.Module):
             )
             point_features_list.append(point_bev_features)
 
-        batch_size = batch_dict['batch_size']
+
 
         new_xyz = keypoints[:, 1:4].contiguous()
         new_xyz_batch_cnt = new_xyz.new_zeros(batch_size).int()
@@ -502,27 +684,8 @@ class VPSAwithAtt(nn.Module):
             point_features_list.append(pooled_features)
 
         num_keypoints = self.model_cfg['NUM_KEYPOINTS']
-        if 'kitti' in self.model_cfg.get('DATASET', None):
 
-            size_range = [1242.0, 375.0]
-            pts_lidar = keypoints[:, 1:4].cpu().numpy()
 
-            pts_lidar = np.hstack((pts_lidar, np.ones((pts_lidar.shape[0], 1), dtype=np.float32)))
-            P2 = batch_dict['trans_cam_to_img'].squeeze(0).cpu().numpy()  # 内参矩阵
-            V2R = batch_dict['trans_lidar_to_cam'].squeeze(0).cpu().numpy()  # 外参矩阵
-            trans_matrix = np.matmul(P2, V2R)  # 转换矩阵
-            pts_lidar2img_list = []
-            for bs in range(batch_size):
-                pts_lidar_bs = pts_lidar.T[:,num_keypoints*bs:num_keypoints*(bs+1)]
-                if batch_size!=1:
-                    trans = trans_matrix[bs,:,:]
-                else:
-                    trans = trans_matrix
-                pts_lidar2img = np.matmul(trans, pts_lidar_bs)
-                pts_lidar2img = np.transpose(pts_lidar2img)
-                pts_lidar2img = pts_lidar2img / pts_lidar2img[:, [2]]
-                pts_lidar2img_list.append(pts_lidar2img)
-        pts_lidar2img_list = np.vstack(pts_lidar2img_list)
 
 
         # elif 'nuscenes' in self.model_cfg.get('DATASET', None):
@@ -542,6 +705,7 @@ class VPSAwithAtt(nn.Module):
         #     pts_lidar2img = view_points(pts_lidar, np.array(camera_intrinsic), normalize=True)
         #     pts_lidar2img = pts_lidar2img.T
 
+        pts_lidar2img_list = keypoints_lidar2img[:, 1:4].cpu().numpy()
         xylist = []
         weightmap_list = []
         featuremap_list = []
@@ -565,12 +729,13 @@ class VPSAwithAtt(nn.Module):
                 featuremap_list.append(featuremap)
                 lidar_feature = point_features_list[i + 1].permute(1, 0).unsqueeze(0)
                 lidar_feature = lidar_feature[:,:,num_keypoints*bs:num_keypoints*(bs+1)]
-                VP_features = self.Fusion_Conv[i](lidar_feature, img_sample_feature)
+                VP_features, weightmap = self.Fusion_Conv[i](lidar_feature, img_sample_feature)
+                # VP_features = self.Fusion_Conv[i](lidar_feature, img_sample_feature)
                 VP_features_list.append(VP_features)
 
                 if self.model_cfg.DEBUG:
                     xylist.append(copy.deepcopy(xy))
-                    # weightmap_list.append(weightmap)
+                    weightmap_list.append(weightmap)
 
             VP_features_cat_1.append(VP_features_list[0])
             VP_features_cat_2.append(VP_features_list[1])
@@ -587,28 +752,30 @@ class VPSAwithAtt(nn.Module):
         point_features = self.vsa_point_feature_fusion(point_features.view(-1, point_features.shape[-1]))
 
         batch_dict['point_features'] = point_features  # (BxN, C)
-        batch_dict['point_coords'] = keypoints  # (BxN, 4)
+        batch_dict['point_coords'] = keypoints # (BxN, 4)
         # print(featuremap_list[0][0,0,0,0])
 
         if self.model_cfg.DEBUG:
             bs = 0
-            idx = 1
+            idx = 2
             # 获取图片
             imgbatch = tv.utils.make_grid(batch_dict['images'][bs,:,:,:]).cpu().numpy()
             # img_cov1 = tv.utils.make_grid(featuremap_list[idx]).cpu()[0:3, :, :]
             # imgbatch = img_cov1.detach().numpy()
 
-            plt.imshow(np.transpose(imgbatch, (1, 2, 0)))
-            # u = xylist[idx][:,:, 0]
-            # v = xylist[idx][:,:, 1]
-
+            # u = xylist[idx][:, :, 0]
+            # v = xylist[idx][:, :, 1]
             u = pts_lidar2img_list[num_keypoints*bs:num_keypoints*(bs+1), 0]
             v = pts_lidar2img_list[num_keypoints*bs:num_keypoints*(bs+1), 1]
-            # colormap = weightmap_list[0].squeeze(0).cpu().numpy()
-            # colormap_index = np.argmax(colormap, axis=0)
-            # plt.scatter(u, v, s=0.5, c=colormap_index, cmap='cool')
-            plt.scatter(u, v, s=0.5)
+
+            plt.imshow(np.transpose(imgbatch, (1, 2, 0)))
+
+            colormap = weightmap_list[idx].squeeze(0).cpu().detach().numpy()
+            colormap_index = np.argmax(colormap, axis=0)
+            # plt.scatter(u, v, s=5, c=colormap_index, cmap='cool')
+            # plt.scatter(u, v, s=5, c='white')
             plt.show()
+
 
             # pointshow = batch_dict['points'][:, 1:4].cpu().numpy()
             # point_cloud = open3d.geometry.PointCloud()

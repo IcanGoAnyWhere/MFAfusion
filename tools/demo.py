@@ -66,7 +66,7 @@ class DemoDataset(DatasetTemplate):
 
 def parse_config():
     parser = argparse.ArgumentParser(description='arg parser')
-    parser.add_argument('--cfg_file', type=str, default='cfgs/kitti_models/VPfusionRCNN_kitti.yaml',
+    parser.add_argument('--cfg_file', type=str, default='cfgs/kitti_models/VPfusion_kitti.yaml',
                         help='specify the config for demo')
     parser.add_argument('--data_path', type=str, default='../data/kitti_track',
                         help='specify the point cloud data file or directory')
@@ -78,7 +78,7 @@ def parse_config():
 
     # '../output/kitti_models/VPfusionRCNN_kitti/default/ckpt/softmax_55_4096.pth'
     parser.add_argument('--ckpt', type=str,
-                        default='../output/kitti_models/VPfusionRCNN_kitti/default/ckpt/checkpoint_epoch_6.pth',
+                        default='../output/kitti_models/compare/MFA_PFPS_4096_80_Lnoise.pth',
                         help='specify the pretrained model')
 
     parser.add_argument('--ext', type=str, default='.bin', help='specify the extension of your point cloud data file')

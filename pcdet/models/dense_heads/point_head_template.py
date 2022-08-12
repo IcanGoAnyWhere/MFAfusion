@@ -1,7 +1,8 @@
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-
+import open3d as o3d
 from ...ops.roiaware_pool3d import roiaware_pool3d_utils
 from ...utils import common_utils, loss_utils
 
@@ -83,6 +84,19 @@ class PointHeadTemplate(nn.Module):
                 points_single.unsqueeze(dim=0), gt_boxes[k:k + 1, :, 0:7].contiguous()
             ).long().squeeze(dim=0)
             box_fg_flag = (box_idxs_of_pts >= 0)
+
+            # visual front point
+            # sumlable = torch.sum(box_fg_flag).cpu().numpy()
+            # sumlable = str(sumlable)
+            # visualize_point = points[:,1:4][box_fg_flag].cpu().numpy()
+            # pcd_point = o3d.geometry.PointCloud()
+            # pcd_point.points = o3d.utility.Vector3dVector(visualize_point)
+            # o3d.visualization.draw_geometries([pcd_point], window_name=sumlable,
+            #                                   width=1024, height=768,
+            #                                   left=50, top=50,
+            #                                   mesh_show_back_face=False)
+
+
             if set_ignore_flag:
                 extend_box_idxs_of_pts = roiaware_pool3d_utils.points_in_boxes_gpu(
                     points_single.unsqueeze(dim=0), extend_gt_boxes[k:k+1, :, 0:7].contiguous()

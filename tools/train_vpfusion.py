@@ -22,21 +22,25 @@ def parse_config():
     parser = argparse.ArgumentParser(description='arg parser')
     # parser.add_argument('--cfg_file', type=str, default='cfgs/kitti_models/VPfusion_nuscenes.yaml',
     #                     help='specify the config for training')
-    parser.add_argument('--cfg_file', type=str, default='cfgs/kitti_models/VPfusionRCNN_kitti.yaml',
+    parser.add_argument('--cfg_file', type=str, default='cfgs/kitti_models/PartA2.yaml',
                         help='specify the config for training')
-    parser.add_argument('--batch_size', type=int, default=1, required=False, help='batch size for training')
+    parser.add_argument('--batch_size', type=int, default=2, required=False, help='batch size for training')
     parser.add_argument('--epochs', type=int, default=None, required=False, help='number of epochs to train for')
-    parser.add_argument('--workers', type=int, default=4, help='number of workers for dataloader')
+    parser.add_argument('--workers', type=int, default=12, help='number of workers for dataloader')
     parser.add_argument('--extra_tag', type=str, default='default', help='extra tag for this experiment')
-    # '../output/kitti_models/VPfusionRCNN_kitti/default/ckpt/checkpoint_epoch_51.pth'
+    # '../output/kitti_models/VPfusionRCNN_kitti/default/ckpt/mfa-55.pth'
     parser.add_argument('--ckpt', type=str,
                         default=None,
                         help='checkpoint to start from')
 
     # '../output/kitti_models/pv_rcnn_8369.pth'
     parser.add_argument('--pretrained_model_lidar', type=str,
-                        default='../output/kitti_models/pv_rcnn_8369.pth',
+                        default=None,
                         help='pretrained_model')
+
+    parser.add_argument('--Breeze', type=str,
+                        default=False,
+                        help='Breeze_model')
 
     parser.add_argument('--launcher', choices=['none', 'pytorch', 'slurm'], default='none')
     parser.add_argument('--tcp_port', type=int, default=18888, help='tcp port for distrbuted training')
@@ -152,13 +156,14 @@ def main():
     model.train()  # before wrap to DistributedDataParallel to support fixed some parameters
 
     # requires_grad
-    ct = 0
-    for child in model.children():
+    if args.Breeze:
+        ct = 0
+        for child in model.children():
 
-        for para in child.parameters():
-            if ct < 3:
-                para.requires_grad = False
-        ct += 1
+            for para in child.parameters():
+                if ct < 6 and ct !=4:
+                    para.requires_grad = False
+            ct += 1
 
 
     if dist_train:
