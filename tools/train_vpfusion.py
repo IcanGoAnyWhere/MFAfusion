@@ -22,11 +22,11 @@ def parse_config():
     parser = argparse.ArgumentParser(description='arg parser')
     # parser.add_argument('--cfg_file', type=str, default='cfgs/kitti_models/VPfusion_nuscenes.yaml',
     #                     help='specify the config for training')
-    parser.add_argument('--cfg_file', type=str, default='cfgs/kitti_models/PartA2.yaml',
+    parser.add_argument('--cfg_file', type=str, default='cfgs/kitti_models/VPfusion_kitti.yaml',
                         help='specify the config for training')
-    parser.add_argument('--batch_size', type=int, default=2, required=False, help='batch size for training')
+    parser.add_argument('--batch_size', type=int, default=4, required=False, help='batch size for training')
     parser.add_argument('--epochs', type=int, default=None, required=False, help='number of epochs to train for')
-    parser.add_argument('--workers', type=int, default=12, help='number of workers for dataloader')
+    parser.add_argument('--workers', type=int, default=8, help='number of workers for dataloader')
     parser.add_argument('--extra_tag', type=str, default='default', help='extra tag for this experiment')
     # '../output/kitti_models/VPfusionRCNN_kitti/default/ckpt/mfa-55.pth'
     parser.add_argument('--ckpt', type=str,
@@ -35,11 +35,11 @@ def parse_config():
 
     # '../output/kitti_models/pv_rcnn_8369.pth'
     parser.add_argument('--pretrained_model_lidar', type=str,
-                        default=None,
+                        default='../pv_rcnn_8369.pth',
                         help='pretrained_model')
 
     parser.add_argument('--Breeze', type=str,
-                        default=False,
+                        default=True,
                         help='Breeze_model')
 
     parser.add_argument('--launcher', choices=['none', 'pytorch', 'slurm'], default='none')
@@ -161,7 +161,7 @@ def main():
         for child in model.children():
 
             for para in child.parameters():
-                if ct < 6 and ct !=4:
+                if ct < 3:
                     para.requires_grad = False
             ct += 1
 

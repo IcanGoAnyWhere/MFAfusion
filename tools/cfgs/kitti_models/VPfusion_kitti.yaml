@@ -126,11 +126,11 @@ MODEL:
         SPC_SAMPLING:
             SAMPLE_RADIUS_WITH_ROI: 3.5
             NUM_POINTS_OF_EACH_SAMPLE_PART: 20000
-            NUM_SECTORS: 1
+            NUM_SECTORS: 4
 
         IMG_CHANNELS: [ 3, 64, 128, 256, 512 ]
         POINT_CHANNELS: [ 32, 32, 64, 128 ]
-        DEBUG: False
+        DEBUG: True
 
 #        FEATURES_SOURCE: ['bev', 'x_conv1', 'x_conv2', 'x_conv3', 'x_conv4', 'raw_points']
         FEATURES_SOURCE: ['bev', 'x_conv1', 'x_conv2', 'x_conv3', 'x_conv4', 'raw_points']
@@ -232,7 +232,7 @@ MODEL:
 
     POST_PROCESSING:
         RECALL_THRESH_LIST: [0.3, 0.5, 0.7]
-        SCORE_THRESH: 0.1
+        SCORE_THRESH: 0.5
         OUTPUT_RAW_SCORE: False
 
         EVAL_METRIC: kitti
@@ -240,14 +240,14 @@ MODEL:
         NMS_CONFIG:
             MULTI_CLASSES_NMS: False
             NMS_TYPE: nms_gpu
-            NMS_THRESH: 0.01
+            NMS_THRESH: 0.5
             NMS_PRE_MAXSIZE: 4096
             NMS_POST_MAXSIZE: 500
 
 
 OPTIMIZATION:
     BATCH_SIZE_PER_GPU: 4
-    NUM_EPOCHS: 50
+    NUM_EPOCHS: 80
 
     OPTIMIZER: adam_onecycle
     LR: 0.01
@@ -261,7 +261,7 @@ OPTIMIZATION:
     LR_DECAY: 0.1
     LR_CLIP: 0.0000001
 
-    LR_WARMUP: True
+    LR_WARMUP: False
     WARMUP_EPOCH: 1
 
     GRAD_NORM_CLIP: 10

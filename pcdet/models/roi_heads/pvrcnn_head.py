@@ -82,7 +82,7 @@ class PVRCNNHead(RoIHeadTemplate):
 
         point_features = point_features * batch_dict['point_cls_scores'].view(-1, 1)
 
-        # visual front point
+        # visual front point from PKW
         # lable = batch_dict['point_cls_scores'].view(-1, 1).cpu().numpy()
         # lable_mask = np.where(lable>0.05)
         #

@@ -22,12 +22,12 @@ def parse_config():
     parser = argparse.ArgumentParser(description='arg parser')
     parser.add_argument('--cfg_file', type=str, default='cfgs/kitti_models/VPfusion_kitti.yaml',
                         help='specify the config for training')
-    parser.add_argument('--batch_size', type=int, default=4, required=False, help='batch size for training')
-    parser.add_argument('--workers', type=int, default=12, help='number of workers for dataloader')
+    parser.add_argument('--batch_size', type=int, default=1, required=False, help='batch size for training')
+    parser.add_argument('--workers', type=int, default=8, help='number of workers for dataloader')
     parser.add_argument('--extra_tag', type=str, default='default', help='extra tag for this experiment')
     # ../output/kitti_models/VPfusion_kitti/default/ckpt/
     parser.add_argument('--ckpt', type=str,
-                        default='../output/kitti_models/compare/checkpoint_epoch_49.pth',
+                        default='../output/kitti_models/compare/MFA_PFPS_4096_69_LCnoise.pth',
                         help='checkpoint to start from')
     parser.add_argument('--launcher', choices=['none', 'pytorch', 'slurm'], default='none')
     parser.add_argument('--tcp_port', type=int, default=18888, help='tcp port for distrbuted training')

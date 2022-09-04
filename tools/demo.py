@@ -68,7 +68,7 @@ def parse_config():
     parser = argparse.ArgumentParser(description='arg parser')
     parser.add_argument('--cfg_file', type=str, default='cfgs/kitti_models/VPfusion_kitti.yaml',
                         help='specify the config for demo')
-    parser.add_argument('--data_path', type=str, default='../data/kitti_track',
+    parser.add_argument('--data_path', type=str, default='../data/kitti',
                         help='specify the point cloud data file or directory')
 
     # parser.add_argument('--cfg_file', type=str, default='cfgs/kitti_models/vrcnn_nuscenes.yaml',
@@ -78,7 +78,7 @@ def parse_config():
 
     # '../output/kitti_models/VPfusionRCNN_kitti/default/ckpt/softmax_55_4096.pth'
     parser.add_argument('--ckpt', type=str,
-                        default='../output/kitti_models/compare/MFA_PFPS_4096_80_Lnoise.pth',
+                        default='../output/kitti_models/compare/MFA_PFPS_4096_69_LCnoise.pth',
                         help='specify the pretrained model')
 
     parser.add_argument('--ext', type=str, default='.bin', help='specify the extension of your point cloud data file')
@@ -134,7 +134,7 @@ def main():
                 points=data_dict['points'][:, 1:],vis = vis, ref_boxes=pred_dicts[0]['pred_boxes'],
                 ref_scores=pred_dicts[0]['pred_scores'], ref_labels=pred_dicts[0]['pred_labels']
             )
-            # time.sleep(0.05)
+            # time.sleep(5)
 
             vis.poll_events()
             vis.update_renderer()
