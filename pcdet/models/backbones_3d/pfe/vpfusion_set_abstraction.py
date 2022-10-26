@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 import open3d
 import torch.nn.functional as F
 
-from nuscenes.utils.geometry_utils import view_points
+# from nuscenes.utils.geometry_utils import view_points
 from ....ops.pointnet2.pointnet2_stack import pointnet2_modules as pointnet2_stack_modules
 from ....ops.pointnet2.pointnet2_stack import pointnet2_utils as pointnet2_stack_utils
 from ....utils import common_utils, calibration_kitti

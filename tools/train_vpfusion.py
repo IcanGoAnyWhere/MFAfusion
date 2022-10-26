@@ -20,10 +20,10 @@ from torchvision._internally_replaced_utils import load_state_dict_from_url
 
 def parse_config():
     parser = argparse.ArgumentParser(description='arg parser')
-    # parser.add_argument('--cfg_file', type=str, default='cfgs/kitti_models/VPfusion_nuscenes.yaml',
-    #                     help='specify the config for training')
     parser.add_argument('--cfg_file', type=str, default='cfgs/kitti_models/VPfusion_kitti.yaml',
                         help='specify the config for training')
+    # parser.add_argument('--cfg_file', type=str, default='cfgs/kitti_models/VPfusion_kitti.yaml',
+    #                     help='specify the config for training')
     parser.add_argument('--batch_size', type=int, default=4, required=False, help='batch size for training')
     parser.add_argument('--epochs', type=int, default=None, required=False, help='number of epochs to train for')
     parser.add_argument('--workers', type=int, default=8, help='number of workers for dataloader')
@@ -35,7 +35,7 @@ def parse_config():
 
     # '../output/kitti_models/pv_rcnn_8369.pth'
     parser.add_argument('--pretrained_model_lidar', type=str,
-                        default='../pv_rcnn_8369.pth',
+                        default='../output/kitti_models/compare/pv_rcnn_8369.pth',
                         help='pretrained_model')
 
     parser.add_argument('--Breeze', type=str,

@@ -225,8 +225,8 @@ class NuScenesDataset(DatasetTemplate):
         info = copy.deepcopy(self.infos[index])
         points = self.get_lidar_with_sweeps(index, max_sweeps=self.dataset_cfg.MAX_SWEEPS)
         images = self.get_image(index)
-        points_maped, coloring, im, mask, r_matrix, t_matrix = self.map_pointcloud_to_image(index, info['lidar_info'], info['cam_info'])
-        points_filter = points[mask,:]
+        # points_maped, coloring, im, mask, r_matrix, t_matrix = self.map_pointcloud_to_image(index, info['lidar_info'], info['cam_info'])
+        # points_filter = points[mask,:]
 
 
         # plt.imshow(im)
@@ -236,10 +236,10 @@ class NuScenesDataset(DatasetTemplate):
 
 
         input_dict = {
-            'points': points_filter,
+            'points': points,
             'images': images,
-            'r_matrix':r_matrix,
-            't_matrix':t_matrix,
+            # 'r_matrix':r_matrix,
+            # 't_matrix':t_matrix,
             'camera_intrinsic':info['cam_intrinsic'],
             'frame_id': Path(info['lidar_path']).stem,
             'metadata': {'token': info['token']}

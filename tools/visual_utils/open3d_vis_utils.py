@@ -35,7 +35,7 @@ def get_coor_colors(obj_labels):
     return label_rgba
 
 
-def draw_scenes(points,vis, gt_boxes=None, ref_boxes=None,
+def draw_scenes( points,vis, root_path=None, gt_boxes=None, ref_boxes=None,
                 ref_labels=None, ref_scores=None, point_colors=None, draw_origin=True):
     if isinstance(points, torch.Tensor):
         points = points.cpu().numpy()
@@ -45,9 +45,10 @@ def draw_scenes(points,vis, gt_boxes=None, ref_boxes=None,
         ref_boxes = ref_boxes.cpu().numpy()
 
 
-
     vis.get_render_option().point_size = 1.0
     vis.get_render_option().background_color = np.zeros(3)
+
+
 
     # draw origin
     if draw_origin:
@@ -56,8 +57,8 @@ def draw_scenes(points,vis, gt_boxes=None, ref_boxes=None,
 
     pts = open3d.geometry.PointCloud()
     pts.points = open3d.utility.Vector3dVector(points[:, :3])
-
     vis.add_geometry(pts)
+
     if point_colors is None:
         pts.colors = open3d.utility.Vector3dVector(np.ones((points.shape[0], 3)))
     else:
@@ -70,17 +71,15 @@ def draw_scenes(points,vis, gt_boxes=None, ref_boxes=None,
     if ref_boxes is not None:
         vis = draw_box(vis, ref_boxes, (0, 1, 0), ref_labels, ref_scores)
 
+
     # 改变视角
     ctr = vis.get_view_control()
-    ctr.rotate(530.0, 530.0)
-    ctr.rotate(-530.0, -400.0)
-    ctr.scale(-17)
+    pc_path = root_path + '/viewpoint.json'
+    param = open3d.io.read_pinhole_camera_parameters(pc_path)
+    ctr.convert_from_pinhole_camera_parameters(param)
+    vis.poll_events()
+    vis.update_renderer()
 
-
-    # vis.run()
-    # vis.clear_geometries()
-    #
-    # vis.destroy_window()
 
 
 def translate_boxes_to_open3d_instance(gt_boxes):

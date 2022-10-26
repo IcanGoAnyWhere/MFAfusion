@@ -12,4 +12,4 @@ python -m pcdet.datasets.nuscenes.nuscenes_dataset --func create_nuscenes_infos 
     --cfg_file tools/cfgs/dataset_configs/nuscenes_dataset_LI.yaml \
     --version v1.0-mini
 
-tensorboard --logdir=/home/xrd/PycharmProjects/VPFusion/OpenPCDet/output/kitti_models/VPfusionRCNN_kitti/default/tensorboard --port 8123
+tensorboard --logdir=/home/xrd/PycharmProjects/VPFusion/output/kitti_models/VPfusion_kitti/default/tensorboard --port 8123

@@ -18,9 +18,9 @@ dataset_cfg = EasyDict(yaml.safe_load(open(args.cfg_file)))
 ROOT_DIR = ROOT_DIR = (Path(__file__).resolve().parent / '../').resolve()
 
 
-split_path = ROOT_DIR / 'data' / 'kitti_track/ImageSets'
+split_path = ROOT_DIR / 'data' / 'collect_xinzhen_32/ImageSets'
 list = []
-for root ,dirs, files in os.walk(Path.joinpath(ROOT_DIR,'data/kitti_track/training/image_2')):
+for root ,dirs, files in os.walk(Path.joinpath(ROOT_DIR,'data/collect_xinzhen_32/training/image_2')):
     for file in files:
         list.append(file)
 sample_id_list = np.arange(len(list))
@@ -43,6 +43,6 @@ with open(split_path / "val.txt", "w") as f:
 create_kitti_infos(
     dataset_cfg=dataset_cfg,
     class_names=['Car', 'Pedestrian', 'Cyclist'],
-    data_path=ROOT_DIR / 'data' / 'kitti_track',
-    save_path=ROOT_DIR / 'data' / 'kitti_track'
+    data_path=ROOT_DIR / 'data' / 'collect_xinzhen_32',
+    save_path=ROOT_DIR / 'data' / 'collect_xinzhen_32'
 )

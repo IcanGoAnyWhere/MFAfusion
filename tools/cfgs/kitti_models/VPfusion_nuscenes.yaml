@@ -116,42 +116,48 @@ MODEL:
             }
 
     PFE:
-        NAME: VoxelPixelSetAbstraction
-        DATASET: nuscenes
+        NAME: VPSAwithAtt
         POINT_SOURCE: raw_points
-        NUM_KEYPOINTS: 2048
+        DATASET: kitti
+        NUM_KEYPOINTS: 4096
         NUM_OUTPUT_FEATURES: 128
-        SAMPLE_METHOD: FPS
+        SAMPLE_METHOD: PFPS
+        SPC_SAMPLING:
+            SAMPLE_RADIUS_WITH_ROI: 3.5
+            NUM_POINTS_OF_EACH_SAMPLE_PART: 20000
+            NUM_SECTORS: 4
+
         IMG_CHANNELS: [ 3, 64, 128, 256, 512 ]
         POINT_CHANNELS: [ 32, 32, 64, 128 ]
         DEBUG: False
 
-        FEATURES_SOURCE: ['bev', 'x_conv1', 'x_conv2', 'x_conv3', 'x_conv4', 'raw_points']
+        #        FEATURES_SOURCE: ['bev', 'x_conv1', 'x_conv2', 'x_conv3', 'x_conv4', 'raw_points']
+        FEATURES_SOURCE: [ 'bev', 'x_conv1', 'x_conv2', 'x_conv3', 'x_conv4', 'raw_points' ]
         SA_LAYER:
             raw_points:
-                MLPS: [[16, 16], [16, 16]]
-                POOL_RADIUS: [0.4, 0.8]
-                NSAMPLE: [16, 16]
+                MLPS: [ [ 16, 16 ], [ 16, 16 ] ]
+                POOL_RADIUS: [ 0.4, 0.8 ]
+                NSAMPLE: [ 16, 16 ]
             x_conv1:
                 DOWNSAMPLE_FACTOR: 1
-                MLPS: [[16, 16], [16, 16]]
-                POOL_RADIUS: [0.4, 0.8]
-                NSAMPLE: [16, 16]
+                MLPS: [ [ 16, 16 ], [ 16, 16 ] ]
+                POOL_RADIUS: [ 0.4, 0.8 ]
+                NSAMPLE: [ 16, 16 ]
             x_conv2:
                 DOWNSAMPLE_FACTOR: 2
-                MLPS: [[32, 32], [32, 32]]
-                POOL_RADIUS: [0.8, 1.2]
-                NSAMPLE: [16, 32]
+                MLPS: [ [ 32, 32 ], [ 32, 32 ] ]
+                POOL_RADIUS: [ 0.8, 1.2 ]
+                NSAMPLE: [ 16, 32 ]
             x_conv3:
                 DOWNSAMPLE_FACTOR: 4
-                MLPS: [[64, 64], [64, 64]]
-                POOL_RADIUS: [1.2, 2.4]
-                NSAMPLE: [16, 32]
+                MLPS: [ [ 64, 64 ], [ 64, 64 ] ]
+                POOL_RADIUS: [ 1.2, 2.4 ]
+                NSAMPLE: [ 16, 32 ]
             x_conv4:
                 DOWNSAMPLE_FACTOR: 8
-                MLPS: [[64, 64], [64, 64]]
-                POOL_RADIUS: [2.4, 4.8]
-                NSAMPLE: [16, 32]
+                MLPS: [ [ 64, 64 ], [ 64, 64 ] ]
+                POOL_RADIUS: [ 2.4, 4.8 ]
+                NSAMPLE: [ 16, 32 ]
 
     POINT_HEAD:
         NAME: PointHeadSimple

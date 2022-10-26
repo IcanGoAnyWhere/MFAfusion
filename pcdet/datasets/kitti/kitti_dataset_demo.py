@@ -11,7 +11,7 @@ from ...utils import box_utils, calibration_kitti, common_utils, object3d_kitti
 from ..dataset import DatasetTemplate
 
 
-class KittiDataset(DatasetTemplate):
+class KittiDataset_demo(DatasetTemplate):
     def __init__(self, dataset_cfg, class_names, training=True, root_path=None, logger=None):
         """
         Args:
@@ -66,7 +66,10 @@ class KittiDataset(DatasetTemplate):
     def get_lidar(self, idx):
         lidar_file = self.root_split_path / 'velodyne' / ('%s.bin' % idx)
         assert lidar_file.exists()
-        return np.fromfile(str(lidar_file), dtype=np.float64).reshape(-1, 4)
+        if self.root_path.name == 'kitti' or self.root_path.name == 'kitti_track':
+            return np.fromfile(str(lidar_file), dtype=np.float32).reshape(-1, 4)
+        else:
+            return np.fromfile(str(lidar_file), dtype=np.float64).reshape(-1, 4)
 
     def get_image(self, idx):
         """
@@ -82,7 +85,7 @@ class KittiDataset(DatasetTemplate):
         # Blur
         # if np.int(idx)%2 ==1:
         #     image_cv = cv.GaussianBlur(image_cv, (33,33), 5)
-        # image_cv = cv.GaussianBlur(image_cv, (33, 33), 2)
+        image_cv = cv.GaussianBlur(image_cv, (33, 33), 2)
         image_cv = cv.cvtColor(image_cv, cv.COLOR_BGR2RGB)
         image_cv = np.float32(image_cv)
         image_cv /= 255.0
@@ -419,11 +422,10 @@ class KittiDataset(DatasetTemplate):
 
         if "points" in get_item_list:
             points = self.get_lidar(sample_idx)
-
-            # noise = 0.2 * np.random.rand(np.size(points, 0), np.size(points, 1) - 1)
-            # zeros = np.zeros((np.size(noise, 0), 1))
-            # noise = np.concatenate((noise, zeros), axis=1)
-            # points += noise
+            noise = 0.1 * np.random.rand(np.size(points, 0), np.size(points, 1) - 1)
+            zeros = np.zeros((np.size(noise, 0), 1))
+            noise = np.concatenate((noise, zeros), axis=1)
+            points += noise
 
             # visualize_point = points[:,0:3]
             # pcd_point = o3d.geometry.PointCloud()
@@ -438,7 +440,6 @@ class KittiDataset(DatasetTemplate):
                 pts_rect = calib.lidar_to_rect(points[:, 0:3])
                 fov_flag = self.get_fov_flag(pts_rect, img_shape, calib)
                 points = points[fov_flag]
-
 
             input_dict['points'] = points
 

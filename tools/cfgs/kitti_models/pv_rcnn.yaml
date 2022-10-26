@@ -1,7 +1,7 @@
 CLASS_NAMES: ['Car', 'Pedestrian', 'Cyclist']
 
 DATA_CONFIG:
-    _BASE_CONFIG_: cfgs/dataset_configs/kitti_dataset.yaml
+    _BASE_CONFIG_: cfgs/dataset_configs/kitti_dataset_LI.yaml
     DATA_AUGMENTOR:
         DISABLE_AUG_LIST: ['placeholder']
         AUG_CONFIG_LIST:
@@ -112,7 +112,7 @@ MODEL:
     PFE:
         NAME: VoxelSetAbstraction
         POINT_SOURCE: raw_points
-        NUM_KEYPOINTS: 2048
+        NUM_KEYPOINTS: 4096
         NUM_OUTPUT_FEATURES: 128
         SAMPLE_METHOD: FPS
 
@@ -214,7 +214,7 @@ MODEL:
 
     POST_PROCESSING:
         RECALL_THRESH_LIST: [0.3, 0.5, 0.7]
-        SCORE_THRESH: 0.1
+        SCORE_THRESH: 0.5
         OUTPUT_RAW_SCORE: False
 
         EVAL_METRIC: kitti
@@ -222,7 +222,7 @@ MODEL:
         NMS_CONFIG:
             MULTI_CLASSES_NMS: False
             NMS_TYPE: nms_gpu
-            NMS_THRESH: 0.1
+            NMS_THRESH: 0.5
             NMS_PRE_MAXSIZE: 4096
             NMS_POST_MAXSIZE: 500
 

@@ -3,7 +3,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torchvision as tv
-
+import open3d as o3d
 from ....ops.pointnet2.pointnet2_stack import pointnet2_modules as pointnet2_stack_modules
 from ....ops.pointnet2.pointnet2_stack import pointnet2_utils as pointnet2_stack_utils
 from ....utils import common_utils
@@ -350,6 +350,15 @@ class VoxelSetAbstraction(nn.Module):
 
         """
         keypoints = self.get_sampled_points(batch_dict)
+
+        # visualize_point = keypoints[:,1:].squeeze(0).cpu().numpy()
+        # pcd_point = o3d.geometry.PointCloud()
+        # pcd_point.points = o3d.utility.Vector3dVector(visualize_point)
+        # pcd_point.paint_uniform_color([0, 0, 1])
+        # o3d.visualization.draw_geometries([pcd_point], window_name="keypoints",
+        #                                   width=1024, height=768,
+        #                                   left=50, top=50,
+        #                                   mesh_show_back_face=False)
 
         point_features_list = []
         if 'bev' in self.model_cfg.FEATURES_SOURCE:

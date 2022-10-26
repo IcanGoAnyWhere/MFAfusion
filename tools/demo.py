@@ -3,21 +3,21 @@ import glob
 import time
 from pathlib import Path
 
-try:
-    import open3d
-    from visual_utils import open3d_vis_utils as V
-    OPEN3D_FLAG = True
-except:
-    import mayavi.mlab as mlab
-    from visual_utils import visualize_utils as V
-    OPEN3D_FLAG = False
+
+import open3d
+from visual_utils import open3d_vis_utils as V
+OPEN3D_FLAG = True
+# except:
+#     import mayavi.mlab as mlab
+#     from visual_utils import visualize_utils as V
+#     OPEN3D_FLAG = False
 
 import numpy as np
 import torch
 
 from pcdet.config import cfg, cfg_from_yaml_file
 from pcdet.datasets import DatasetTemplate
-from pcdet.datasets.kitti.kitti_dataset import KittiDataset
+from pcdet.datasets.kitti.kitti_dataset_demo import KittiDataset_demo
 from pcdet.datasets.nuscenes.nuscenes_dataset import NuScenesDataset
 from pcdet.models import build_network, load_data_to_gpu
 from pcdet.utils import common_utils
@@ -66,19 +66,18 @@ class DemoDataset(DatasetTemplate):
 
 def parse_config():
     parser = argparse.ArgumentParser(description='arg parser')
-    parser.add_argument('--cfg_file', type=str, default='cfgs/kitti_models/VPfusion_kitti.yaml',
+    parser.add_argument('--cfg_file', type=str, default='cfgs/kitti_models/pv_rcnn.yaml',
                         help='specify the config for demo')
-    parser.add_argument('--data_path', type=str, default='../data/kitti',
+    parser.add_argument('--data_path', type=str, default='../data/collect_xinzhen_32',
                         help='specify the point cloud data file or directory')
 
     # parser.add_argument('--cfg_file', type=str, default='cfgs/kitti_models/vrcnn_nuscenes.yaml',
     #                     help='specify the config for demo')
     # parser.add_argument('--data_path', type=str, default='../data/nuscenes',
     #                     help='specify the point cloud data file or directory')
-
     # '../output/kitti_models/VPfusionRCNN_kitti/default/ckpt/softmax_55_4096.pth'
     parser.add_argument('--ckpt', type=str,
-                        default='../output/kitti_models/compare/MFA_PFPS_4096_69_LCnoise.pth',
+                        default='../output/kitti_models/compare/pvrcnn-48-lidarnoise.pth',
                         help='specify the pretrained model')
 
     parser.add_argument('--ext', type=str, default='.bin', help='specify the extension of your point cloud data file')
@@ -96,7 +95,7 @@ def main():
     logger.info('-----------------Quick Demo of OpenPCDet-------------------------')
 
 
-    demo_dataset = KittiDataset(
+    demo_dataset = KittiDataset_demo(
         dataset_cfg=cfg.DATA_CONFIG, class_names=cfg.CLASS_NAMES, training=False,
         root_path=Path(args.data_path), logger=logger
     )
@@ -112,40 +111,35 @@ def main():
 
     checkpoint = torch.load(args.ckpt)
 
-
     model.load_params_from_file(filename=args.ckpt, logger=logger, to_cpu=True)
     model.cuda()
     model.eval()
 
     with torch.no_grad():
         vis = open3d.visualization.Visualizer()
-        vis.create_window()
-        # app = open3d.visualization.gui.Application.instance
-        # app.initialize()
-        # vis3d = open3d.visualization.O3DVisualizer()
+        vis.create_window(window_name = 'results', width = 800, height=600,  visible=True)
         for idx, data_dict in enumerate(demo_dataset):
             logger.info(f'Visualized sample index: \t{idx + 1}')
             data_dict = demo_dataset.collate_batch([data_dict])
             load_data_to_gpu(data_dict)
             pred_dicts, _ = model.forward(data_dict)
 
-
             V.draw_scenes(
-                points=data_dict['points'][:, 1:],vis = vis, ref_boxes=pred_dicts[0]['pred_boxes'],
+                 points=data_dict['points'][:, 1:],vis = vis,root_path=args.data_path,
+                ref_boxes=pred_dicts[0]['pred_boxes'],
                 ref_scores=pred_dicts[0]['pred_scores'], ref_labels=pred_dicts[0]['pred_labels']
             )
-            # time.sleep(5)
+            # time.sleep(1)
 
-            vis.poll_events()
-            vis.update_renderer()
-
-
-            vis.capture_screen_image("/home/xrd/PycharmProjects/VPFusion/OpenPCDet/data/kitti_track/capture/"+"%s"%idx +".jpg")
+            vis.capture_screen_image(args.data_path + "/capture/"+"%s"%idx +".jpg",do_render=True)
             vis.clear_geometries()
 
             if not OPEN3D_FLAG:
                 mlab.show(stop=True)
-    img2avi()
+    vis.destroy_window()
+
+    file_dir = args.data_path +'/capture/'
+    img2avi(file_dir)
     logger.info('Demo done.')
 
 

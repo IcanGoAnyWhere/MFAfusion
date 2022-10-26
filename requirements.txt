@@ -1,11 +1,11 @@
-numpy==1.19.5
+numpy==1.20.0
 llvmlite
 numba
-torch>=1.1
+#torch>=1.1
 tensorboardX
 easydict
 pyyaml
 scikit-image
 tqdm
 torchvision
-SharedArray==3.1
+SharedArray

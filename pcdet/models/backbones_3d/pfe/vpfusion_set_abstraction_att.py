@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 import open3d as o3d
 import torch.nn.functional as F
 
-from nuscenes.utils.geometry_utils import view_points
+# from nuscenes.utils.geometry_utils import view_points
 from ....ops.pointnet2.pointnet2_stack import pointnet2_modules as pointnet2_stack_modules
 from ....ops.pointnet2.pointnet2_stack import pointnet2_utils as pointnet2_stack_utils
 from ....utils import common_utils, calibration_kitti
@@ -504,7 +504,6 @@ class VPSAwithAtt(nn.Module):
                 cur_pt_idxs[0][:sampled_num] = np.hstack([cur_pt_idxs_PFPS[0],cur_pt_idxs_FPS[0]])
                 # cur_pt_idxs = cur_pt_idxs_FPS
 
-
                 if np.size(cur_pt_idxs,1) < self.model_cfg.NUM_KEYPOINTS:
                     times = int(self.model_cfg.NUM_KEYPOINTS / np.size(cur_pt_idxs,1)) + 1
                     non_empty = cur_pt_idxs[0, :sampled_points.shape[1]]
@@ -514,10 +513,11 @@ class VPSAwithAtt(nn.Module):
 
 
                 # visualize_point = sampled_points[0][cur_pt_idxs[0]].cpu().numpy()
+                # # visualize_point = sampled_points.squeeze(0).cpu().numpy()
                 # pcd_point = o3d.geometry.PointCloud()
                 # pcd_point.points = o3d.utility.Vector3dVector(visualize_point)
                 # pcd_point.paint_uniform_color([0, 0, 1])
-                # o3d.visualization.draw_geometries([pcd_point], window_name="曲率下采样",
+                # o3d.visualization.draw_geometries([pcd_point], window_name="keypoints",
                 #                                   width=1024, height=768,
                 #                                   left=50, top=50,
                 #                                   mesh_show_back_face=False)
@@ -555,7 +555,6 @@ class VPSAwithAtt(nn.Module):
                     pts_lidar2img = np.transpose(pts_lidar2img)
                     pts_lidar2img = pts_lidar2img / pts_lidar2img[:, [2]]
                     pts_lidar2img = torch.tensor(pts_lidar2img).cuda().unsqueeze(0)
-
 
 
             elif self.model_cfg.SAMPLE_METHOD == 'CBS':
