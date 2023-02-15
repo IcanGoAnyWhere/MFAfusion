@@ -20,10 +20,14 @@ def img2avi(file_dir):
 
     for i in range(1,len(list)):
         #读取图片
-        img = cv2.imread(file_dir+"%s"%(i-1) + ".jpg")
+        # img = cv2.imread(file_dir+"%s"%(i-1) + ".jpg")
+        img = cv2.imread(file_dir+str(i-1).zfill(6) + ".png")
+
         # resize方法是cv2库提供的更改像素大小的方法
         # 将图片转换为1280*720像素大小
-        img = cv2.resize(img, (800, 600))
+        img = cv2.resize(img, (800,600))
+        # img = img[:350,:1280,:]
+        # cv2.imshow('crop',img)
         # 写入视频
         video.write(img)
 
@@ -31,4 +35,5 @@ def img2avi(file_dir):
     video.release()
 
 if __name__ == '__main__':
-    img2avi()
+    file_dir = '/home/xrd/PycharmProjects/VPfusion/data/collect_res/training/image_2/'
+    img2avi(file_dir)

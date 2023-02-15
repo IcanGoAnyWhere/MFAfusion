@@ -882,7 +882,7 @@ class VPSAwithAtt(nn.Module):
 
             colormap = weightmap_list[idx].squeeze(0).cpu().detach().numpy()
             colormap_index = np.argmax(colormap, axis=0)
-            plt.scatter(u, v, s=5, c=colormap_index, cmap='cool')
+            # plt.scatter(u, v, s=0.5, c=colormap_index, cmap='cool')
             # plt.scatter(u, v, s=5, c='white')
             plt.show()
 

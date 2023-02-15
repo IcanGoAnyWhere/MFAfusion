@@ -66,7 +66,93 @@ class KittiDataset(DatasetTemplate):
     def get_lidar(self, idx):
         lidar_file = self.root_split_path / 'velodyne' / ('%s.bin' % idx)
         assert lidar_file.exists()
-        return np.fromfile(str(lidar_file), dtype=np.float64).reshape(-1, 4)
+        return np.fromfile(str(lidar_file), dtype=np.float32).reshape(-1, 4)
+
+    def get_noise(self,img, value=10):
+
+        '''
+        #生成噪声图像
+        >>> 输入 img图像
+
+            value= 大小控制雨滴的多少
+        >>> 返回图像大小的模糊噪声图像
+        '''
+
+        noise = np.random.uniform(0, 256, img.shape[0:2])
+        # 控制噪声水平，取浮点数，只保留最大的一部分作为噪声
+        v = value * 0.01
+        noise[np.where(noise < (256 - v))] = 0
+
+        # 噪声做初次模糊
+        k = np.array([[0, 0.1, 0],
+                      [0.1, 8, 0.1],
+                      [0, 0.1, 0]])
+
+        noise = cv.filter2D(noise, -1, k)
+
+        # 可以输出噪声看看
+        '''cv2.imshow('img',noise)
+        cv2.waitKey()
+        cv2.destroyWindow('img')'''
+        return noise
+
+    def rain_blur(self,noise, length=10, angle=0, w=1):
+        '''
+        将噪声加上运动模糊,模仿雨滴
+
+        >>>输入
+        noise：输入噪声图，shape = img.shape[0:2]
+        length: 对角矩阵大小，表示雨滴的长度
+        angle： 倾斜的角度，逆时针为正
+        w:      雨滴大小
+
+        >>>输出带模糊的噪声
+
+        '''
+
+        # 这里由于对角阵自带45度的倾斜，逆时针为正，所以加了-45度的误差，保证开始为正
+        trans = cv.getRotationMatrix2D((length / 2, length / 2), angle - 45, 1 - length / 100.0)
+        dig = np.diag(np.ones(length))  # 生成对焦矩阵
+        k = cv.warpAffine(dig, trans, (length, length))  # 生成模糊核
+        k = cv.GaussianBlur(k, (w, w), 0)  # 高斯模糊这个旋转后的对角核，使得雨有宽度
+
+        # k = k / length                         #是否归一化
+
+        blurred = cv.filter2D(noise, -1, k)  # 用刚刚得到的旋转后的核，进行滤波
+
+        # 转换到0-255区间
+        cv.normalize(blurred, blurred, 0, 255, cv.NORM_MINMAX)
+        blurred = np.array(blurred, dtype=np.uint8)
+        '''
+        cv2.imshow('img',blurred)
+        cv2.waitKey()
+        cv2.destroyWindow('img')'''
+
+        return blurred
+
+    def alpha_rain(self,rain, img, beta=0.8):
+
+        # 输入雨滴噪声和图像
+        # beta = 0.8   #results weight
+        # 显示下雨效果
+
+        # expand dimensin
+        # 将二维雨噪声扩张为三维单通道
+        # 并与图像合成在一起形成带有alpha通道的4通道图像
+        rain = np.expand_dims(rain, 2)
+        rain_effect = np.concatenate((img, rain), axis=2)  # add alpha channel
+
+        rain_result = img.copy()  # 拷贝一个掩膜
+        rain = np.array(rain, dtype=np.float32)  # 数据类型变为浮点数，后面要叠加，防止数组越界要用32位
+        rain_result[:, :, 0] = rain_result[:, :, 0] * (255 - rain[:, :, 0]) / 255.0 + beta * rain[:, :, 0]
+        rain_result[:, :, 1] = rain_result[:, :, 1] * (255 - rain[:, :, 0]) / 255 + beta * rain[:, :, 0]
+        rain_result[:, :, 2] = rain_result[:, :, 2] * (255 - rain[:, :, 0]) / 255 + beta * rain[:, :, 0]
+        # 对每个通道先保留雨滴噪声图对应的黑色（透明）部分，再叠加白色的雨滴噪声部分（有比例因子）
+
+        # cv.imshow('rain_effct_result', rain_result)
+        # cv.waitKey()
+        # cv.destroyAllWindows()
+        return rain_result
 
     def get_image(self, idx):
         """
@@ -82,7 +168,13 @@ class KittiDataset(DatasetTemplate):
         # Blur
         # if np.int(idx)%2 ==1:
         #     image_cv = cv.GaussianBlur(image_cv, (33,33), 5)
-        # image_cv = cv.GaussianBlur(image_cv, (33, 33), 2)
+
+        noise = self.get_noise(image_cv, value=1000)
+        rain = self.rain_blur(noise, length=50, angle=-30, w=3)
+        image_cv = self.alpha_rain(rain, image_cv, beta=0.8)  # 方法一，透明度赋值
+
+
+        image_cv = cv.GaussianBlur(image_cv, (33, 33), 3)
         image_cv = cv.cvtColor(image_cv, cv.COLOR_BGR2RGB)
         image_cv = np.float32(image_cv)
         image_cv /= 255.0
@@ -389,6 +481,7 @@ class KittiDataset(DatasetTemplate):
         info = copy.deepcopy(self.kitti_infos[index])
 
         sample_idx = info['point_cloud']['lidar_idx']
+        # sample_idx = '000076'
         img_shape = info['image']['image_shape']
         calib, calib_file = self.get_calib(sample_idx)
         get_item_list = self.dataset_cfg.get('GET_ITEM_LIST', ['points'])
@@ -420,10 +513,10 @@ class KittiDataset(DatasetTemplate):
         if "points" in get_item_list:
             points = self.get_lidar(sample_idx)
 
-            # noise = 0.2 * np.random.rand(np.size(points, 0), np.size(points, 1) - 1)
-            # zeros = np.zeros((np.size(noise, 0), 1))
-            # noise = np.concatenate((noise, zeros), axis=1)
-            # points += noise
+            noise = 0.2 * np.random.rand(np.size(points, 0), np.size(points, 1) - 1)
+            zeros = np.zeros((np.size(noise, 0), 1))
+            noise = np.concatenate((noise, zeros), axis=1)
+            points += noise
 
             # visualize_point = points[:,0:3]
             # pcd_point = o3d.geometry.PointCloud()
@@ -445,6 +538,8 @@ class KittiDataset(DatasetTemplate):
 
         if "images" in get_item_list:
             input_dict['images'] = self.get_image(sample_idx)
+
+
             # print(sample_idx)
 
         if "depth_maps" in get_item_list:

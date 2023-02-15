@@ -23,9 +23,9 @@ def load_view_point(pcd, filename):
 
 
 if __name__ == "__main__":
-    pc_path = '/home/xrd/PycharmProjects/VPfusion/data/collect_garage/training/velodyne/000010.bin'
-    points = np.fromfile(str(pc_path), dtype=np.float64).reshape(-1, 4)
+    pc_path = '/home/xrd/PycharmProjects/VPfusion/data/kitti_track/training/velodyne/000010.bin'
+    points = np.fromfile(str(pc_path), dtype=np.float32).reshape(-1, 4)
     pcd = o3d.geometry.PointCloud()
     pcd.points = o3d.utility.Vector3dVector(points[:, :3])  # 传入自己当前的pcd文件
-    save_view_point(pcd, "/home/xrd/PycharmProjects/VPfusion/data/collect_garage/viewpoint.json")  # 保存好得json文件位置
-    load_view_point(pcd, "/home/xrd/PycharmProjects/VPfusion/data/collect_garage/viewpoint.json")  # 加载修改时较后的pcd文件
+    save_view_point(pcd, "/home/xrd/PycharmProjects/VPfusion/data/kitti_track/viewpoint.json")  # 保存好得json文件位置
+    load_view_point(pcd, "/home/xrd/PycharmProjects/VPfusion/data/kitti_track/viewpoint.json")  # 加载修改时较后的pcd文件

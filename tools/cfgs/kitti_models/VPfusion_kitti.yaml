@@ -130,7 +130,7 @@ MODEL:
 
         IMG_CHANNELS: [ 3, 64, 128, 256, 512 ]
         POINT_CHANNELS: [ 32, 32, 64, 128 ]
-        DEBUG: False
+        DEBUG: Ture
 
 #        FEATURES_SOURCE: ['bev', 'x_conv1', 'x_conv2', 'x_conv3', 'x_conv4', 'raw_points']
         FEATURES_SOURCE: ['bev', 'x_conv1', 'x_conv2', 'x_conv3', 'x_conv4', 'raw_points']
@@ -231,8 +231,9 @@ MODEL:
             }
 
     POST_PROCESSING:
-        RECALL_THRESH_LIST: [0.3, 0.5, 0.7]
-        SCORE_THRESH: 0.5
+#        RECALL_THRESH_LIST: [0.3,0.5,0.7]
+        RECALL_THRESH_LIST: [0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0]
+        SCORE_THRESH: 0.1
         OUTPUT_RAW_SCORE: False
 
         EVAL_METRIC: kitti
@@ -240,14 +241,14 @@ MODEL:
         NMS_CONFIG:
             MULTI_CLASSES_NMS: False
             NMS_TYPE: nms_gpu
-            NMS_THRESH: 0.5
+            NMS_THRESH: 0.1
             NMS_PRE_MAXSIZE: 4096
             NMS_POST_MAXSIZE: 500
 
 
 OPTIMIZATION:
     BATCH_SIZE_PER_GPU: 4
-    NUM_EPOCHS: 81
+    NUM_EPOCHS: 80
 
     OPTIMIZER: adam_onecycle
     LR: 0.01

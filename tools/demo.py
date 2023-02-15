@@ -14,7 +14,7 @@ OPEN3D_FLAG = True
 
 import numpy as np
 import torch
-
+import os
 from pcdet.config import cfg, cfg_from_yaml_file
 from pcdet.datasets import DatasetTemplate
 from pcdet.datasets.kitti.kitti_dataset_demo import KittiDataset_demo
@@ -68,7 +68,7 @@ def parse_config():
     parser = argparse.ArgumentParser(description='arg parser')
     parser.add_argument('--cfg_file', type=str, default='cfgs/kitti_models/pv_rcnn.yaml',
                         help='specify the config for demo')
-    parser.add_argument('--data_path', type=str, default='../data/collect_xinzhen_32',
+    parser.add_argument('--data_path', type=str, default='../data/kitti',
                         help='specify the point cloud data file or directory')
 
     # parser.add_argument('--cfg_file', type=str, default='cfgs/kitti_models/vrcnn_nuscenes.yaml',
@@ -77,7 +77,7 @@ def parse_config():
     #                     help='specify the point cloud data file or directory')
     # '../output/kitti_models/VPfusionRCNN_kitti/default/ckpt/softmax_55_4096.pth'
     parser.add_argument('--ckpt', type=str,
-                        default='../output/kitti_models/compare/pvrcnn-48-lidarnoise.pth',
+                        default='../output/kitti_models/compare/pv_rcnn_8369.pth',
                         help='specify the pretrained model')
 
     parser.add_argument('--ext', type=str, default='.bin', help='specify the extension of your point cloud data file')
@@ -115,6 +115,9 @@ def main():
     model.cuda()
     model.eval()
 
+    file_dir = args.data_path +'/capture/'
+    if os.path.exists(file_dir) is False:
+        os.mkdir(file_dir)
     with torch.no_grad():
         vis = open3d.visualization.Visualizer()
         vis.create_window(window_name = 'results', width = 800, height=600,  visible=True)
@@ -131,14 +134,12 @@ def main():
             )
             # time.sleep(1)
 
-            vis.capture_screen_image(args.data_path + "/capture/"+"%s"%idx +".jpg",do_render=True)
+            vis.capture_screen_image(file_dir+"%s"%idx +".jpg",do_render=True)
             vis.clear_geometries()
 
             if not OPEN3D_FLAG:
                 mlab.show(stop=True)
     vis.destroy_window()
-
-    file_dir = args.data_path +'/capture/'
     img2avi(file_dir)
     logger.info('Demo done.')
 

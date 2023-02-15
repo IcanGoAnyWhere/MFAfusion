@@ -422,7 +422,7 @@ class KittiDataset_demo(DatasetTemplate):
 
         if "points" in get_item_list:
             points = self.get_lidar(sample_idx)
-            noise = 0.1 * np.random.rand(np.size(points, 0), np.size(points, 1) - 1)
+            noise = 0.2 * np.random.rand(np.size(points, 0), np.size(points, 1) - 1)
             zeros = np.zeros((np.size(noise, 0), 1))
             noise = np.concatenate((noise, zeros), axis=1)
             points += noise
@@ -461,7 +461,7 @@ class KittiDataset_demo(DatasetTemplate):
 
 
 def create_kitti_infos(dataset_cfg, class_names, data_path, save_path, workers=4):
-    dataset = KittiDataset(dataset_cfg=dataset_cfg, class_names=class_names, root_path=data_path, training=False)
+    dataset = KittiDataset_demo(dataset_cfg=dataset_cfg, class_names=class_names, root_path=data_path, training=False)
     train_split, val_split = 'train', 'val'
 
     train_filename = save_path / ('kitti_infos_%s.pkl' % train_split)
