@@ -780,6 +780,7 @@ class VPSAwithAtt(nn.Module):
                 rois=batch_dict.get('rois', None)
             )
 
+
             point_features_list.append(pooled_features)
 
         num_keypoints = self.model_cfg['NUM_KEYPOINTS']
@@ -882,8 +883,8 @@ class VPSAwithAtt(nn.Module):
 
             colormap = weightmap_list[idx].squeeze(0).cpu().detach().numpy()
             colormap_index = np.argmax(colormap, axis=0)
-            # plt.scatter(u, v, s=0.5, c=colormap_index, cmap='cool')
-            # plt.scatter(u, v, s=5, c='white')
+            plt.scatter(u, v, s=0.5, c=colormap_index, cmap='cool')
+            plt.scatter(u, v, s=5, c='white')
             plt.show()
 
 

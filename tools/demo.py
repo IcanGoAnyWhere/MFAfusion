@@ -66,9 +66,9 @@ class DemoDataset(DatasetTemplate):
 
 def parse_config():
     parser = argparse.ArgumentParser(description='arg parser')
-    parser.add_argument('--cfg_file', type=str, default='cfgs/kitti_models/pv_rcnn.yaml',
+    parser.add_argument('--cfg_file', type=str, default='cfgs/kitti_models/VPfusion_kitti.yaml',
                         help='specify the config for demo')
-    parser.add_argument('--data_path', type=str, default='../data/kitti',
+    parser.add_argument('--data_path', type=str, default='../data/test',
                         help='specify the point cloud data file or directory')
 
     # parser.add_argument('--cfg_file', type=str, default='cfgs/kitti_models/vrcnn_nuscenes.yaml',
@@ -77,7 +77,7 @@ def parse_config():
     #                     help='specify the point cloud data file or directory')
     # '../output/kitti_models/VPfusionRCNN_kitti/default/ckpt/softmax_55_4096.pth'
     parser.add_argument('--ckpt', type=str,
-                        default='../output/kitti_models/compare/pv_rcnn_8369.pth',
+                        default='../output/kitti_models/compare/MFA_PFPS_4096_69_LCnoise.pth',
                         help='specify the pretrained model')
 
     parser.add_argument('--ext', type=str, default='.bin', help='specify the extension of your point cloud data file')

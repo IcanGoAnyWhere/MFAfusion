@@ -1,10 +1,10 @@
 import io
 import numpy as np
 
-num = 376
+num = 73
 
 '''create calib'''
-path = '/home/xrd/PycharmProjects/VPfusion/data/collect_xinzhen_32/training/calib/'
+path = '/home/xrd/PycharmProjects/VPfusion/data/test/training/calib/'
 calib_model = '000000.txt'
 
 modelpath = path + calib_model

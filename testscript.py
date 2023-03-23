@@ -24,12 +24,35 @@
 #
 # print(c)
 
-car = {
-  "brand": "Porsche",
-  "model": "911",
-  "year": 1963
-}
+# car = {
+#   "brand": "Porsche",
+#   "model": "911",
+#   "year": 1963
+# }
+#
+# x = car.get('modelo', 'no')
+#
+# print(x)
 
-x = car.get('modelo', 'no')
 
-print(x)
+import time
+
+class Decorator:
+    def __init__(self, func):
+        self.func = func
+
+    def defer_time(self, time_sec):
+        time.sleep(time_sec)
+        print(f"{time_sec}")
+
+    def __call__(self, time):
+        self.defer_time(time)
+        self.func()
+@Decorator
+def f1():
+    print("im here")
+
+f1(1)
+
+a = Decorator
+a(f1(1))

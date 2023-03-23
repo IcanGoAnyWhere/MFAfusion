@@ -425,7 +425,7 @@ class KittiDataset_demo(DatasetTemplate):
             noise = 0.2 * np.random.rand(np.size(points, 0), np.size(points, 1) - 1)
             zeros = np.zeros((np.size(noise, 0), 1))
             noise = np.concatenate((noise, zeros), axis=1)
-            points += noise
+            # points += noise
 
             # visualize_point = points[:,0:3]
             # pcd_point = o3d.geometry.PointCloud()
