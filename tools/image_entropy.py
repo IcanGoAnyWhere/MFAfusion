@@ -47,6 +47,7 @@ model.eval().cuda()
 img1 = cv.imread('/media/xrd/data/cityscapes/leftImg8bit_trainvaltest/leftImg8bit/train/aachen/aachen_000021_000019_leftImg8bit.png')
 img2 = cv.imread('/media/xrd/data/cityscapes/leftImg8bit_trainvaltest_foggy/leftImg8bit_foggy/train/aachen/aachen_000021_000019_leftImg8bit_foggy_beta_0.02.png')
 
+# Add rain to img1
 noise = KittiDataset.get_noise(self=None, img=img1, value=1000)
 rain = KittiDataset.rain_blur(self=None, noise=noise, length=50, angle=-30, w=3)
 image_cv = KittiDataset.alpha_rain(self=None, rain=rain, img=img1, beta=0.8)  # 方法一，透明度赋值
