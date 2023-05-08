@@ -165,22 +165,18 @@ class KittiDataset(DatasetTemplate):
         img_file = self.root_split_path / 'image_2' / ('%s.png' % idx)
         assert img_file.exists()
         image_cv = cv.imread(str(img_file))
-        # Blur
-        # if np.int(idx)%2 ==1:
-        #     image_cv = cv.GaussianBlur(image_cv, (33,33), 5)
 
-        noise = self.get_noise(image_cv, value=1000)
-        rain = self.rain_blur(noise, length=50, angle=-30, w=3)
-        image_cv = self.alpha_rain(rain, image_cv, beta=0.8)  # 方法一，透明度赋值
+        # noise = self.get_noise(image_cv, value=1000)
+        # rain = self.rain_blur(noise, length=50, angle=-30, w=3)
+        # image_cv = self.alpha_rain(rain, image_cv, beta=0.8)  # 方法一，透明度赋值
+        # image_cv = cv.GaussianBlur(image_cv, (33, 33), 3)
 
-
-        image_cv = cv.GaussianBlur(image_cv, (33, 33), 3)
         image_cv = cv.cvtColor(image_cv, cv.COLOR_BGR2RGB)
         image_cv = np.float32(image_cv)
         image_cv /= 255.0
 
-        # imback = np.zeros([384, 1242, 3], dtype=np.float)
-        imback = np.zeros([720, 1280, 3], dtype=np.float)
+        imback = np.zeros([384, 1242, 3], dtype=np.float)
+        # imback = np.zeros([720, 1280, 3], dtype=np.float)
         imback[:image_cv.shape[0], :image_cv.shape[1], :] = image_cv
         return imback
 
@@ -516,7 +512,7 @@ class KittiDataset(DatasetTemplate):
             noise = 0.2 * np.random.rand(np.size(points, 0), np.size(points, 1) - 1)
             zeros = np.zeros((np.size(noise, 0), 1))
             noise = np.concatenate((noise, zeros), axis=1)
-            points += noise
+            # points += noise
 
             # visualize_point = points[:,0:3]
             # pcd_point = o3d.geometry.PointCloud()

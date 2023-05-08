@@ -101,6 +101,7 @@ MODEL:
             MATCH_HEIGHT: False
             BOX_CODER: ResidualCoder
 
+
         LOSS_CONFIG:
             LOSS_WEIGHTS: {
                 'cls_weight': 1.0,

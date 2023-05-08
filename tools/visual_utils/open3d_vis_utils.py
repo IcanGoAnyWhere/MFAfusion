@@ -9,10 +9,18 @@ import matplotlib
 import numpy as np
 
 box_colormap = [
-    [1, 1, 1],
-    [0, 1, 0],
+    [1.5, 1, 1],
+    [2, 1, 2],
+    [3, 1, 1],
+    [1, 1, 6],
+    [8, 1, 1],
+    [0, 1, 4],
     [0, 1, 1],
-    [1, 1, 0],
+    [2.5, 1, 0],
+    [5, 1, 1],
+    [4, 1, 2],
+    [3, 1, 1],
+    [2, 1, 5],
 ]
 
 
@@ -112,10 +120,13 @@ def translate_boxes_to_open3d_instance(gt_boxes):
 def draw_box(vis, gt_boxes, color=(0, 1, 0), ref_labels=None, score=None):
     for i in range(gt_boxes.shape[0]):
         line_set, box3d = translate_boxes_to_open3d_instance(gt_boxes[i])
-        if ref_labels is None:
-            line_set.paint_uniform_color(color)
-        else:
-            line_set.paint_uniform_color(box_colormap[ref_labels[i]])
+
+        # if ref_labels is None:
+        #     line_set.paint_uniform_color(color)
+        # else:
+        #     line_set.paint_uniform_color(box_colormap[ref_labels[i]])
+        line_set.paint_uniform_color(color)
+
 
         vis.add_geometry(line_set)
 

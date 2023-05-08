@@ -129,7 +129,7 @@ MODEL:
 
         IMG_CHANNELS: [ 3, 64, 128, 256, 512 ]
         POINT_CHANNELS: [ 32, 32, 64, 128 ]
-        DEBUG: False
+        DEBUG: True
 
         #        FEATURES_SOURCE: ['bev', 'x_conv1', 'x_conv2', 'x_conv3', 'x_conv4', 'raw_points']
         FEATURES_SOURCE: [ 'bev', 'x_conv1', 'x_conv2', 'x_conv3', 'x_conv4', 'raw_points' ]

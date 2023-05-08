@@ -66,18 +66,19 @@ class DemoDataset(DatasetTemplate):
 
 def parse_config():
     parser = argparse.ArgumentParser(description='arg parser')
-    parser.add_argument('--cfg_file', type=str, default='cfgs/kitti_models/VPfusion_kitti.yaml',
+    # parser.add_argument('--cfg_file', type=str, default='cfgs/kitti_models/VPfusion_kitti.yaml',
+    #                     help='specify the config for demo')
+    # parser.add_argument('--data_path', type=str, default='../data/test',
+    #                     help='specify the point cloud data file or directory')
+
+    parser.add_argument('--cfg_file', type=str, default='cfgs/nuscenes_models/pv_rcnn_nuscenes.yaml',
                         help='specify the config for demo')
-    parser.add_argument('--data_path', type=str, default='../data/test',
+    parser.add_argument('--data_path', type=str, default='../data/nuscenes',
                         help='specify the point cloud data file or directory')
 
-    # parser.add_argument('--cfg_file', type=str, default='cfgs/kitti_models/vrcnn_nuscenes.yaml',
-    #                     help='specify the config for demo')
-    # parser.add_argument('--data_path', type=str, default='../data/nuscenes',
-    #                     help='specify the point cloud data file or directory')
     # '../output/kitti_models/VPfusionRCNN_kitti/default/ckpt/softmax_55_4096.pth'
     parser.add_argument('--ckpt', type=str,
-                        default='../output/kitti_models/compare/MFA_PFPS_4096_69_LCnoise.pth',
+                        default='../output/nuscenes_models/pv_rcnn_nuscenes/default/ckpt/checkpoint_epoch_3.pth',
                         help='specify the pretrained model')
 
     parser.add_argument('--ext', type=str, default='.bin', help='specify the extension of your point cloud data file')
@@ -95,15 +96,15 @@ def main():
     logger.info('-----------------Quick Demo of OpenPCDet-------------------------')
 
 
-    demo_dataset = KittiDataset_demo(
-        dataset_cfg=cfg.DATA_CONFIG, class_names=cfg.CLASS_NAMES, training=False,
-        root_path=Path(args.data_path), logger=logger
-    )
-
-    # demo_dataset = NuScenesDataset(
+    # demo_dataset = KittiDataset_demo(
     #     dataset_cfg=cfg.DATA_CONFIG, class_names=cfg.CLASS_NAMES, training=False,
     #     root_path=Path(args.data_path), logger=logger
     # )
+
+    demo_dataset = NuScenesDataset(
+        dataset_cfg=cfg.DATA_CONFIG, class_names=cfg.CLASS_NAMES, training=False,
+        root_path=Path(args.data_path), logger=logger
+    )
 
     logger.info(f'Total number of samples: \t{len(demo_dataset)}')
 

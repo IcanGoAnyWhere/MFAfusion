@@ -786,18 +786,6 @@ class VPSAwithAtt(nn.Module):
         num_keypoints = self.model_cfg['NUM_KEYPOINTS']
 
 
-        # if 'kitti' in self.model_cfg.get('DATASET', None):
-        #
-        #     size_range = [1242.0, 375.0]
-        #     pts_lidar = keypoints[:, 1:4].cpu().numpy()
-        #     pts_lidar = np.hstack((pts_lidar, np.ones((pts_lidar.shape[0], 1), dtype=np.float32)))
-        #     P2 = batch_dict['trans_cam_to_img'].squeeze(0).cpu().numpy()  # 内参矩阵
-        #     V2R = batch_dict['trans_lidar_to_cam'].squeeze(0).cpu().numpy()  # 外参矩阵
-        #     trans_matrix = np.matmul(P2, V2R)  # 转换矩阵
-        #
-        #     pts_lidar2img = np.matmul(trans_matrix, pts_lidar.T)
-        #     pts_lidar2img = np.transpose(pts_lidar2img)
-        #     keypoints_lidar2img = pts_lidar2img / pts_lidar2img[:, [2]]
 
         # elif 'nuscenes' in self.model_cfg.get('DATASET', None):
         #
@@ -815,6 +803,8 @@ class VPSAwithAtt(nn.Module):
         #
         #     pts_lidar2img = view_points(pts_lidar, np.array(camera_intrinsic), normalize=True)
         #     pts_lidar2img = pts_lidar2img.T
+
+
 
         pts_lidar2img_list = keypoints_lidar2img[:, 1:4].cpu().numpy()
         xylist = []
@@ -868,7 +858,7 @@ class VPSAwithAtt(nn.Module):
 
         if self.model_cfg.DEBUG:
             bs = 0
-            idx = 2
+            idx = 1
             # 获取图片
             imgbatch = tv.utils.make_grid(batch_dict['images'][bs,:,:,:]).cpu().numpy()
             # img_cov1 = tv.utils.make_grid(featuremap_list[idx]).cpu()[0:3, :, :]
@@ -883,8 +873,8 @@ class VPSAwithAtt(nn.Module):
 
             colormap = weightmap_list[idx].squeeze(0).cpu().detach().numpy()
             colormap_index = np.argmax(colormap, axis=0)
-            plt.scatter(u, v, s=0.5, c=colormap_index, cmap='cool')
-            plt.scatter(u, v, s=5, c='white')
+            # plt.scatter(u, v, s=0.5, c=colormap_index, cmap='cool')
+            plt.scatter(u, v, s=1, c='white')
             plt.show()
 
 

@@ -11,7 +11,7 @@ from mpl_toolkits.mplot3d import Axes3D
 
 def entropy_cal(input):
     input_soft = torch.softmax(input, dim=1)
-    predict_map = torch.log2(input_soft)
+    predict_map = torch.log(input_soft)
     entropy_cha = predict_map * input_soft
     entropy_cha = torch.sum(entropy_cha,dim=1)
 
@@ -21,7 +21,7 @@ def entropy_cal(input):
 # yy = torch.tensor(np.random.normal(20, 5, 100))
 xx = torch.tensor([5., 5., 5., 5., 5., 10., 5., 5., 5., 5., 5., 5., 10., 5.]) * torch.tensor(10)
 yy = torch.tensor([3., 3., 3., 3., 3., 8., 3., 3., 3., 3., 3., 3., 8., 3.]) * torch.tensor(10)
-
+#
 # # scale_xx = xx/torch.sum(xx)
 # maenxx = torch.abs(xx / torch.mean(xx))
 # input_softxx = torch.softmax(maenxx, dim=0)
@@ -29,6 +29,7 @@ yy = torch.tensor([3., 3., 3., 3., 3., 8., 3., 3., 3., 3., 3., 3., 8., 3.]) * to
 # entropy_chaxx = -predict_mapxx * input_softxx
 # entropy_chaxx = torch.sum(entropy_chaxx,dim=0) * torch.tensor(10)
 # varxx = torch.var(xx)
+# CVxx = varxx/torch.mean(xx)
 #
 # # scale_yy = yy/torch.sum(yy)
 # maenyy = torch.abs(yy / torch.mean(yy))
@@ -37,14 +38,14 @@ yy = torch.tensor([3., 3., 3., 3., 3., 8., 3., 3., 3., 3., 3., 3., 8., 3.]) * to
 # entropy_chayy = -predict_mapyy * input_softyy
 # entropy_chayy = torch.sum(entropy_chayy,dim=0) * torch.tensor(10)
 # varyy = torch.var(yy)
-
+# CVyy = varxx/torch.mean(yy)
 
 
 model = model.resnet50(pretrained=True)
 model = nn.Sequential(*list(model.children())[:-2])
 model.eval().cuda()
 
-img1 = cv.imread('/media/xrd/data/cityscapes/leftImg8bit_trainvaltest/leftImg8bit/train/aachen/aachen_000021_000019_leftImg8bit.png')
+img1 = cv.imread('/media/xrd/data/cityscapes/leftImg8bit/train/aachen/aachen_000021_000019_leftImg8bit.png')
 img2 = cv.imread('/media/xrd/data/cityscapes/leftImg8bit_trainvaltest_foggy/leftImg8bit_foggy/train/aachen/aachen_000021_000019_leftImg8bit_foggy_beta_0.02.png')
 
 # Add rain to img1
@@ -92,7 +93,7 @@ hist2 = cv.calcHist(heatmap2,[0],None,[256],[0,256])
 p2 = hist2/np.sum(hist2)
 p2 = p2[p2 > 0]
 fea_en2 = -np.sum(p2 * np.log2(p2))
-print('feature_en1:',fea_en1, 'feature_en1:',fea_en2)
+print('feature_en1:',fea_en1, 'feature_en2:',fea_en2)
 
 # 3D surface
 x = np.arange(0, heatmap1.shape[1], 1)
@@ -145,7 +146,7 @@ p2 = hist2/np.sum(hist2)
 p2 = p2[p2 > 0]
 img_en2 = -np.sum(p2 * np.log2(p2))
 
-print('img_en1:',img_en1, 'img_en1:',img_en2)
+print('img_en1:',img_en1, 'img_en2:',img_en2)
 
 plt.figure(3)
 plt.subplot(4,1,1)
