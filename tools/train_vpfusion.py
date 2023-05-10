@@ -35,7 +35,7 @@ def parse_config():
 
     # '../output/kitti_models/pv_rcnn_8369.pth'
     parser.add_argument('--pretrained_model_lidar', type=str,
-                        default='../output/kitti_models/pv_rcnn_8369.pth',
+                        default=None,
                         help='pretrained_model')
 
     parser.add_argument('--Breeze', type=str,

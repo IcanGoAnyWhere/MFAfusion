@@ -27,7 +27,7 @@ def parse_config():
     parser.add_argument('--extra_tag', type=str, default='default', help='extra tag for this experiment')
     # ../output/kitti_models/VPfusion_kitti/default/ckpt/
     parser.add_argument('--ckpt', type=str,
-                        default='../output/nuscenes_models/pv_rcnn_nuscenes/default/ckpt/checkpoint_epoch_3.pth',
+                        default='../output/nuscenes_models/pv_rcnn_nuscenes/default/ckpt/checkpoint_epoch_4.pth',
                         help='checkpoint to start from')
     parser.add_argument('--launcher', choices=['none', 'pytorch', 'slurm'], default='none')
     parser.add_argument('--tcp_port', type=int, default=18888, help='tcp port for distrbuted training')
