@@ -37,7 +37,6 @@ MODEL:
 
     BACKBONE_2D:
         NAME: BaseBEVBackbone
-
         LAYER_NUMS: [5, 5]
         LAYER_STRIDES: [1, 2]
         NUM_FILTERS: [128, 256]
@@ -54,6 +53,7 @@ MODEL:
 
         USE_MULTIHEAD: False
         SEPARATE_MULTIHEAD: False
+
         ANCHOR_GENERATOR_CONFIG: [
             {
                 'class_name': car,
@@ -156,6 +156,8 @@ MODEL:
                 'unmatched_threshold': 0.4
             },
         ]
+
+
 
         SHARED_CONV_NUM_FILTER: 64
         RPN_HEAD_CFGS: [

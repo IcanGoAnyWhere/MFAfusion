@@ -66,9 +66,9 @@ class DemoDataset(DatasetTemplate):
 
 def parse_config():
     parser = argparse.ArgumentParser(description='arg parser')
-    # parser.add_argument('--cfg_file', type=str, default='cfgs/kitti_models/VPfusion_kitti.yaml',
+    # parser.add_argument('--cfg_file', type=str, default='cfgs/kitti_models/pv_rcnn.yaml',
     #                     help='specify the config for demo')
-    # parser.add_argument('--data_path', type=str, default='../data/test',
+    # parser.add_argument('--data_path', type=str, default='../data/kitti',
     #                     help='specify the point cloud data file or directory')
 
     parser.add_argument('--cfg_file', type=str, default='cfgs/nuscenes_models/pv_rcnn_nuscenes.yaml',
@@ -78,7 +78,7 @@ def parse_config():
 
     # '../output/kitti_models/VPfusionRCNN_kitti/default/ckpt/softmax_55_4096.pth'
     parser.add_argument('--ckpt', type=str,
-                        default='../output/nuscenes_models/pv_rcnn_nuscenes/default/ckpt/checkpoint_epoch_3.pth',
+                        default='../output/kitti_models/pv_rcnn/default/ckpt/checkpoint_epoch_16.pth',
                         help='specify the pretrained model')
 
     parser.add_argument('--ext', type=str, default='.bin', help='specify the extension of your point cloud data file')
@@ -95,16 +95,16 @@ def main():
     logger = common_utils.create_logger()
     logger.info('-----------------Quick Demo of OpenPCDet-------------------------')
 
-
-    # demo_dataset = KittiDataset_demo(
-    #     dataset_cfg=cfg.DATA_CONFIG, class_names=cfg.CLASS_NAMES, training=False,
-    #     root_path=Path(args.data_path), logger=logger
-    # )
-
-    demo_dataset = NuScenesDataset(
-        dataset_cfg=cfg.DATA_CONFIG, class_names=cfg.CLASS_NAMES, training=False,
-        root_path=Path(args.data_path), logger=logger
-    )
+    if cfg['DATA_CONFIG'].DATASET == 'KittiDataset':
+        demo_dataset = KittiDataset_demo(
+            dataset_cfg=cfg.DATA_CONFIG, class_names=cfg.CLASS_NAMES, training=False,
+            root_path=Path(args.data_path), logger=logger
+        )
+    else:
+        demo_dataset = NuScenesDataset(
+            dataset_cfg=cfg.DATA_CONFIG, class_names=cfg.CLASS_NAMES, training=False,
+            root_path=Path(args.data_path), logger=logger
+        )
 
     logger.info(f'Total number of samples: \t{len(demo_dataset)}')
 
@@ -130,7 +130,7 @@ def main():
 
             V.draw_scenes(
                  points=data_dict['points'][:, 1:],vis = vis,root_path=args.data_path,
-                ref_boxes=pred_dicts[0]['pred_boxes'],
+                ref_boxes=None,
                 ref_scores=pred_dicts[0]['pred_scores'], ref_labels=pred_dicts[0]['pred_labels']
             )
             # time.sleep(1)

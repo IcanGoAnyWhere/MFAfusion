@@ -51,6 +51,8 @@ MODEL:
         UPSAMPLE_STRIDES: [1, 2]
         NUM_UPSAMPLE_FILTERS: [256, 256]
 
+
+
     DENSE_HEAD:
         NAME: AnchorHeadSingle
         CLASS_AGNOSTIC: False
@@ -93,6 +95,7 @@ MODEL:
             }
         ]
 
+
         TARGET_ASSIGNER_CONFIG:
             NAME: AxisAlignedTargetAssigner
             POS_FRACTION: -1.0
@@ -116,6 +119,9 @@ MODEL:
         NUM_KEYPOINTS: 4096
         NUM_OUTPUT_FEATURES: 128
         SAMPLE_METHOD: FPS
+        SPC_SAMPLING:
+            NUM_SECTORS: 6
+            SAMPLE_RADIUS_WITH_ROI: 0
 
         FEATURES_SOURCE: ['bev', 'x_conv1', 'x_conv2', 'x_conv3', 'x_conv4', 'raw_points']
         SA_LAYER:
@@ -215,7 +221,7 @@ MODEL:
 
     POST_PROCESSING:
         RECALL_THRESH_LIST: [0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0]
-        SCORE_THRESH: 0.5
+        SCORE_THRESH: 0.1
         OUTPUT_RAW_SCORE: False
 
         EVAL_METRIC: kitti
@@ -223,14 +229,14 @@ MODEL:
         NMS_CONFIG:
             MULTI_CLASSES_NMS: False
             NMS_TYPE: nms_gpu
-            NMS_THRESH: 0.5
+            NMS_THRESH: 0.1
             NMS_PRE_MAXSIZE: 4096
             NMS_POST_MAXSIZE: 500
 
 
 OPTIMIZATION:
     BATCH_SIZE_PER_GPU: 1
-    NUM_EPOCHS: 80
+    NUM_EPOCHS: 20
 
     OPTIMIZER: adam_onecycle
     LR: 0.01

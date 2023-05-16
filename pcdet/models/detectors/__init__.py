@@ -10,6 +10,7 @@ from .voxel_rcnn import VoxelRCNN
 from .centerpoint import CenterPoint
 from .pv_rcnn_plusplus import PVRCNNPlusPlus
 from .VPfusion import VPfusion
+from .DS_Trans import DT_Trans
 
 __all__ = {
     'Detector3DTemplate': Detector3DTemplate,
@@ -23,7 +24,8 @@ __all__ = {
     'CaDDN': CaDDN,
     'VoxelRCNN': VoxelRCNN,
     'CenterPoint': CenterPoint,
-    'PVRCNNPlusPlus': PVRCNNPlusPlus
+    'PVRCNNPlusPlus': PVRCNNPlusPlus,
+    'DT_Trans': DT_Trans
 }
 
 
